@@ -5,6 +5,9 @@ import bcrypt from "bcryptjs";
 import { logAuthEvent } from "shared/audit";
 import { isAccountLocked, recordFailedLogin, resetLoginFailures } from "shared/rateLimit";
 
+const useSecureCookies = process.env.NODE_ENV === "production";
+const cookiePrefix = useSecureCookies ? "__Secure-" : "";
+
 export const authOptions: NextAuthOptions = {
   providers: [
     CredentialsProvider({
@@ -193,12 +196,12 @@ export const authOptions: NextAuthOptions = {
   },
   cookies: {
     sessionToken: {
-      name: "next-auth.session-token.candidate",
+      name: `${cookiePrefix}next-auth.session-token.candidate`,
       options: {
         httpOnly: true,
         sameSite: "lax",
         path: "/",
-        secure: process.env.NODE_ENV === "production"
+        secure: useSecureCookies
       }
     }
   },
