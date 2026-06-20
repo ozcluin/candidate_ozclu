@@ -72,38 +72,39 @@ export default function CandidateLoginPage() {
   }
 
   return (
-    <div className="min-h-screen flex flex-col justify-center py-12 sm:px-6 lg:px-8 bg-background relative overflow-hidden">
+    <div className="min-h-screen flex flex-col justify-center py-12 sm:px-6 lg:px-8 bg-gradient-to-br from-[#FFF9D0]/20 via-background to-[#CAF4FF]/30 relative overflow-hidden">
       {/* Decorative Orbs */}
-      <div className="absolute top-0 left-1/4 w-96 h-96 bg-primary-fixed opacity-20 rounded-full blur-3xl pointer-events-none"></div>
-      <div className="absolute bottom-10 right-1/4 w-96 h-96 bg-secondary-container opacity-20 rounded-full blur-3xl pointer-events-none"></div>
+      <div className="absolute top-0 right-1/4 w-96 h-96 bg-[#CAF4FF] opacity-40 rounded-full blur-3xl pointer-events-none"></div>
+      <div className="absolute bottom-10 left-1/4 w-96 h-96 bg-[#FFF9D0] opacity-40 rounded-full blur-3xl pointer-events-none"></div>
 
-      <div className="sm:mx-auto sm:w-full sm:max-w-md z-10 animate-fade-in">
-        <div className="flex items-center justify-center gap-2 mb-4">
-          <span className="material-symbols-outlined text-primary text-4xl">
-            verified_user
-          </span>
-          <span className="font-display-lg text-primary tracking-tight">Cluso</span>
+      <div className="sm:mx-auto sm:w-full sm:max-w-md z-10 animate-fade-in text-center px-4">
+        <div className="flex justify-center mb-6">
+          <img 
+            src="/cluso-infolink.png" 
+            alt="Cluso Infolink Logo" 
+            className="h-16 w-auto object-contain rounded-2xl shadow-2xs hover:shadow-sm transition-shadow duration-300"
+          />
         </div>
-        <h2 className="text-center font-display-lg text-primary text-2xl mb-2">
+        <h2 className="text-center font-display-lg text-slate-800 text-2xl mb-2">
           Candidate Portal
         </h2>
-        <p className="text-center font-body-sm text-secondary">
+        <p className="text-center font-body-sm text-slate-500 font-medium">
           Enter your temporary credentials to begin identity verification.
         </p>
       </div>
 
-      <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md z-10 animate-fade-in">
-        <div className="bg-surface-container-lowest py-8 px-4 border border-outline-variant shadow-xs sm:rounded-xl sm:px-10">
+      <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md z-10 animate-fade-in px-4">
+        <div className="bg-white/80 backdrop-blur-md py-8 px-4 border border-[#A0DEFF]/40 shadow-xl rounded-2xl sm:px-10">
           {errorMsg && (
-            <div className="mb-6 p-4 bg-error-container text-on-error-container border border-[#ffb4ab] rounded-lg font-body-sm flex items-center gap-2">
+            <div className="mb-6 p-4 bg-error-container text-on-error-container border border-[#ffb4ab] rounded-xl font-body-sm flex items-center gap-2 shadow-2xs">
               <span className="material-symbols-outlined text-lg text-red-700">error</span>
-              <span>{errorMsg}</span>
+              <span className="font-semibold text-xs">{errorMsg}</span>
             </div>
           )}
 
           <form className="space-y-6" onSubmit={handleSubmit}>
             <div>
-              <label htmlFor="email" className="block font-label-caps text-on-surface-variant uppercase tracking-wider mb-2">
+              <label htmlFor="email" className="block font-label-caps text-slate-500 font-bold uppercase tracking-wider mb-2">
                 Candidate Email ID
               </label>
               <div className="mt-1">
@@ -116,13 +117,13 @@ export default function CandidateLoginPage() {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="Enter your email address"
-                  className="w-full border border-outline-variant rounded-lg p-3 font-body-sm text-on-surface bg-surface-container-lowest focus:outline-none focus:ring-2 focus:ring-secondary-container transition-shadow"
+                  className="w-full border border-[#A0DEFF]/40 rounded-xl p-3 font-body-sm text-slate-900 bg-white/70 focus:outline-none focus:ring-2 focus:ring-[#5AB2FF]/40 focus:border-[#5AB2FF] transition-all placeholder-slate-400 font-medium"
                 />
               </div>
             </div>
 
             <div>
-              <label htmlFor="password" className="block font-label-caps text-on-surface-variant uppercase tracking-wider mb-2">
+              <label htmlFor="password" className="block font-label-caps text-slate-500 font-bold uppercase tracking-wider mb-2">
                 Temporary Password
               </label>
               <div className="mt-1 relative flex items-center">
@@ -135,12 +136,12 @@ export default function CandidateLoginPage() {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="Enter your temporary password"
-                  className="w-full border border-outline-variant rounded-lg p-3 pr-10 font-body-sm text-on-surface bg-surface-container-lowest focus:outline-none focus:ring-2 focus:ring-secondary-container transition-shadow"
+                  className="w-full border border-[#A0DEFF]/40 rounded-xl p-3 pr-10 font-body-sm text-slate-900 bg-white/70 focus:outline-none focus:ring-2 focus:ring-[#5AB2FF]/40 focus:border-[#5AB2FF] transition-all placeholder-slate-400 font-medium"
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 text-secondary hover:text-primary transition-colors flex items-center justify-center p-1 cursor-pointer focus:outline-none"
+                  className="absolute right-3 text-slate-400 hover:text-slate-700 transition-colors flex items-center justify-center p-1 cursor-pointer focus:outline-none"
                   aria-label={showPassword ? "Hide password" : "Show password"}
                 >
                   <span className="material-symbols-outlined text-xl select-none">
@@ -154,11 +155,11 @@ export default function CandidateLoginPage() {
               <button
                 type="submit"
                 disabled={isSubmitting}
-                className="w-full flex justify-center items-center gap-2 py-3 px-4 bg-primary text-on-primary font-button-text rounded-lg hover:bg-primary-container hover:text-on-primary-container transition-all cursor-pointer shadow-sm disabled:opacity-50"
+                className="w-full flex justify-center items-center gap-2 py-3 px-4 bg-primary text-slate-900 hover:bg-[#A0DEFF] font-button-text font-bold rounded-xl transition-all cursor-pointer shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {isSubmitting ? (
                   <>
-                    <div className="w-5 h-5 border-2 border-on-primary border-t-transparent rounded-full animate-spin"></div>
+                    <div className="w-5 h-5 border-2 border-slate-900 border-t-transparent rounded-full animate-spin"></div>
                     <span>Signing in...</span>
                   </>
                 ) : (
