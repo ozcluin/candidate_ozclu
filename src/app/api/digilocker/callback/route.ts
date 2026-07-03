@@ -56,6 +56,28 @@ export async function GET(req: NextRequest) {
     }
 
     const { searchParams } = new URL(req.url);
+
+    // Handle error responses from DigiLocker (e.g., invalid_scope, access_denied, user_cancelled)
+    const oauthError = searchParams.get("error");
+    if (oauthError) {
+      const errorDescription = searchParams.get("error_description") || oauthError;
+      console.error(`[DigiLocker] OAuth error: ${oauthError} - ${errorDescription}`);
+      await logAuditEvent(db, {
+        actorUserId: user.id,
+        actorEmail: email,
+        actorRole: user.role,
+        portal: "candidate",
+        action: "digilocker_oauth_error",
+        outcome: "failure",
+        reason: `DigiLocker returned error: ${oauthError} - ${errorDescription}`,
+        ip,
+        userAgent,
+      });
+      return NextResponse.redirect(
+        new URL(`/candidate/dashboard?error=${encodeURIComponent(`DigiLocker verification failed: ${errorDescription}`)}`, req.url)
+      );
+    }
+
     const code = searchParams.get("code");
     const state = searchParams.get("state");
 

@@ -9,37 +9,45 @@ export default function CandidateLoginPage() {
   const router = useRouter();
   const { login, logout, profile, isAuthenticated, isLoading } = useAuth();
   
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
+  // Read URL params eagerly during initialization (not in useEffect)
+  // so they're available on the very first render
+  const [urlParams] = useState(() => {
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      return {
+        email: params.get("email") || "",
+        password: params.get("password") || "",
+      };
+    }
+    return { email: "", password: "" };
+  });
+
+  const [email, setEmail] = useState(urlParams.email);
+  const [password, setPassword] = useState(urlParams.password);
   const [showPassword, setShowPassword] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
-    if (isAuthenticated) {
-      if (typeof window !== "undefined") {
-        const params = new URLSearchParams(window.location.search);
-        const emailParam = params.get("email")?.toLowerCase().trim();
-        const currentEmail = profile?.email?.toLowerCase().trim();
-        
-        if (profile?.role !== "candidate" || (emailParam && currentEmail && currentEmail !== emailParam)) {
-          logout();
-          return;
-        }
-      }
-      router.push("/candidate/dashboard");
-    }
-  }, [isAuthenticated, profile, router, logout]);
+    if (!isAuthenticated) return;
 
-  useEffect(() => {
     if (typeof window !== "undefined") {
       const params = new URLSearchParams(window.location.search);
-      const emailParam = params.get("email");
-      const passwordParam = params.get("password");
-      if (emailParam) setEmail(emailParam);
-      if (passwordParam) setPassword(passwordParam);
+      const emailParam = params.get("email")?.toLowerCase().trim();
+      const currentEmail = profile?.email?.toLowerCase().trim();
+
+      if (profile?.role !== "candidate" || (emailParam && currentEmail && currentEmail !== emailParam)) {
+        // Preserve query params so credentials survive the redirect
+        const currentSearch = window.location.search;
+        logout();
+        if (currentSearch) {
+          router.replace(`/${currentSearch}`);
+        }
+        return;
+      }
     }
-  }, []);
+    router.push("/candidate/dashboard");
+  }, [isAuthenticated, profile, router, logout]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

@@ -66,10 +66,11 @@ export async function GET(req: NextRequest) {
         client_id: clientId,
         redirect_uri: callbackUrl,
         state: state,
-        scope: "openid files.issueddocs files.uploadeddocs",
+        scope: "openid",
         nonce: nonce,
         code_challenge: codeChallenge,
-        code_challenge_method: "S256"
+        code_challenge_method: "S256",
+        acr: "aadhaar pan driving_licence"
       });
 
       const realAuthUrl = `${baseUrl}/oauth2/1/authorize?${params.toString()}`;
