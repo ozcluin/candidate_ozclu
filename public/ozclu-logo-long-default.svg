@@ -1,0 +1,59 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 40" width="100%" height="100%">
+  <defs>
+    <style type="text/css"><![CDATA[
+  @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&display=swap');
+  .logo-text {
+    font-family: 'Playfair Display', Georgia, 'Times New Roman', serif;
+    font-weight: 700;
+  }
+]]></style>
+    
+  <radialGradient id="glass-lens-grad" cx="30%" cy="30%" r="70%">
+    <stop offset="0%" stop-color="#ffffff" stop-opacity="0.45" />
+    <stop offset="45%" stop-color="#ffffff" stop-opacity="0.12" />
+    <stop offset="90%" stop-color="#C6982E" stop-opacity="0.02" />
+    <stop offset="100%" stop-color="#C6982E" stop-opacity="0.08" />
+  </radialGradient>
+
+  </defs>
+  
+  <!-- OZ — Magnifying Glass where Z is the handle (golden) -->
+  <g>
+    <!-- Glass lens fill -->
+    <circle cx="18" cy="14" r="10" fill="url(#glass-lens-grad)" />
+    <!-- Glass frame (O) -->
+    <circle cx="18" cy="14" r="10" fill="none" stroke="#C6982E" stroke-width="3.2" />
+    <!-- Lens glint / glare -->
+    <path d="M 9.7 12.5 A 8.4 8.4 0 0 1 16.5 5.7" fill="none" stroke="#FFF4CC" stroke-width="1.6" stroke-linecap="round" opacity="0.75" />
+    <!-- Secondary soft reflection at bottom-right -->
+    <path d="M 23.5 19.5 A 8.4 8.4 0 0 1 19.5 21.5" fill="none" stroke="#ffffff" stroke-width="0.8" stroke-linecap="round" opacity="0.35" />
+    <!-- Z-shaped handle -->
+    <path d="M26 21 L38 21 L26 33 L38 33" fill="none" stroke="#C6982E" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round" />
+  </g>
+  
+  
+  <!-- C — Eye shape representing C -->
+  <g transform="translate(48, 5)">
+    
+    <!-- Iris -->
+    <circle cx="14" cy="15" r="7.5" fill="#016e1c" />
+    <!-- Pupil -->
+    <circle cx="14" cy="15" r="3.4" fill="#181d16" />
+    <!-- Iris glint -->
+    <circle cx="11" cy="12.2" r="1.8" fill="white" opacity="0.85" />
+    
+    <!-- Upper lid -->
+    <path d="M0 15 Q8 1.5, 18 3.5" fill="none" stroke="#181d16" stroke-width="3.2" stroke-linecap="round" />
+    <!-- Lower lid -->
+    <path d="M0 15 Q8 28.5, 18 26.5" fill="none" stroke="#181d16" stroke-width="3.2" stroke-linecap="round" />
+  </g>
+  
+  
+  <!-- l -->
+  <text x="82" y="30" class="logo-text" font-size="28" fill="#181d16">l</text>
+  <!-- u -->
+  <text x="92" y="30" class="logo-text" font-size="28" fill="#181d16">u</text>
+  <!-- Hidden e -->
+  <text x="112" y="30" class="logo-text" font-size="28" fill="#181d16" opacity="0.04">e</text>
+  
+</svg>

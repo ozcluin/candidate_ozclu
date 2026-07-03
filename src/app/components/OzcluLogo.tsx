@@ -55,7 +55,7 @@ export default function OzcluLogo({ size = 'md', className = '', theme = 'dark' 
       aria-label="OzClu"
     >
       <svg
-        viewBox="0 0 200 40"
+        viewBox="0 0 136 40"
         height={s.height}
         className={styles.logoSvg}
         aria-hidden="true"

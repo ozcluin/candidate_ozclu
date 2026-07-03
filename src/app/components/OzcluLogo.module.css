@@ -74,7 +74,7 @@
 
 /* Hidden e reveal on hover */
 .hiddenE {
-  opacity: 0.04;
+  opacity: 0;
   transition: opacity 0.45s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
