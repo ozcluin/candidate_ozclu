@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "src/context/AuthContext";
+import OzcluLogo from "./components/OzcluLogo";
 
 export default function CandidateLoginPage() {
   const router = useRouter();
@@ -72,18 +73,14 @@ export default function CandidateLoginPage() {
   }
 
   return (
-    <div className="min-h-screen flex flex-col justify-center py-12 sm:px-6 lg:px-8 bg-gradient-to-br from-[#FFF9D0]/20 via-background to-[#CAF4FF]/30 relative overflow-hidden">
+    <div className="min-h-screen flex flex-col justify-center py-12 sm:px-6 lg:px-8 bg-gradient-to-br from-[#FFF4CC]/20 via-background to-[#eaf0e4]/30 relative overflow-hidden">
       {/* Decorative Orbs */}
-      <div className="absolute top-0 right-1/4 w-96 h-96 bg-[#CAF4FF] opacity-40 rounded-full blur-3xl pointer-events-none"></div>
-      <div className="absolute bottom-10 left-1/4 w-96 h-96 bg-[#FFF9D0] opacity-40 rounded-full blur-3xl pointer-events-none"></div>
+      <div className="absolute top-0 right-1/4 w-96 h-96 bg-[#eaf0e4] opacity-40 rounded-full blur-3xl pointer-events-none"></div>
+      <div className="absolute bottom-10 left-1/4 w-96 h-96 bg-[#FFF4CC] opacity-40 rounded-full blur-3xl pointer-events-none"></div>
 
       <div className="sm:mx-auto sm:w-full sm:max-w-md z-10 animate-fade-in text-center px-4">
         <div className="flex justify-center mb-6">
-          <img 
-            src="/cluso-infolink.png" 
-            alt="Cluso Infolink Logo" 
-            className="h-16 w-auto object-contain rounded-2xl shadow-2xs hover:shadow-sm transition-shadow duration-300"
-          />
+          <OzcluLogo size="lg" />
         </div>
         <h2 className="text-center font-display-lg text-slate-800 text-2xl mb-2">
           Candidate Portal
@@ -94,7 +91,7 @@ export default function CandidateLoginPage() {
       </div>
 
       <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md z-10 animate-fade-in px-4">
-        <div className="bg-white/80 backdrop-blur-md py-8 px-4 border border-[#A0DEFF]/40 shadow-xl rounded-2xl sm:px-10">
+        <div className="bg-white/80 backdrop-blur-md py-8 px-4 border border-[#C6982E]/40 shadow-xl rounded-2xl sm:px-10">
           {errorMsg && (
             <div className="mb-6 p-4 bg-error-container text-on-error-container border border-[#ffb4ab] rounded-xl font-body-sm flex items-center gap-2 shadow-2xs">
               <span className="material-symbols-outlined text-lg text-red-700">error</span>
@@ -117,7 +114,7 @@ export default function CandidateLoginPage() {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="Enter your email address"
-                  className="w-full border border-[#A0DEFF]/40 rounded-xl p-3 font-body-sm text-slate-900 bg-white/70 focus:outline-none focus:ring-2 focus:ring-[#5AB2FF]/40 focus:border-[#5AB2FF] transition-all placeholder-slate-400 font-medium"
+                  className="w-full border border-[#C6982E]/40 rounded-xl p-3 font-body-sm text-slate-900 bg-white/70 focus:outline-none focus:ring-2 focus:ring-[#016e1c]/40 focus:border-[#016e1c] transition-all placeholder-slate-400 font-medium"
                 />
               </div>
             </div>
@@ -136,7 +133,7 @@ export default function CandidateLoginPage() {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="Enter your temporary password"
-                  className="w-full border border-[#A0DEFF]/40 rounded-xl p-3 pr-10 font-body-sm text-slate-900 bg-white/70 focus:outline-none focus:ring-2 focus:ring-[#5AB2FF]/40 focus:border-[#5AB2FF] transition-all placeholder-slate-400 font-medium"
+                  className="w-full border border-[#C6982E]/40 rounded-xl p-3 pr-10 font-body-sm text-slate-900 bg-white/70 focus:outline-none focus:ring-2 focus:ring-[#016e1c]/40 focus:border-[#016e1c] transition-all placeholder-slate-400 font-medium"
                 />
                 <button
                   type="button"
@@ -155,7 +152,7 @@ export default function CandidateLoginPage() {
               <button
                 type="submit"
                 disabled={isSubmitting}
-                className="w-full flex justify-center items-center gap-2 py-3 px-4 bg-primary text-slate-900 hover:bg-[#A0DEFF] font-button-text font-bold rounded-xl transition-all cursor-pointer shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
+                className="w-full flex justify-center items-center gap-2 py-3 px-4 bg-primary text-slate-900 hover:bg-[#C6982E] font-button-text font-bold rounded-xl transition-all cursor-pointer shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {isSubmitting ? (
                   <>

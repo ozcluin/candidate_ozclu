@@ -24,7 +24,7 @@ export async function connectToDatabase(): Promise<{ client: MongoClient; db: Db
     clientPromise = client.connect();
   }
   const connectedClient = await clientPromise!;
-  const db = connectedClient.db("clusoverify");
+  const db = connectedClient.db("ozcluverify");
 
   if (!envValidated) {
     validateEnvironment();

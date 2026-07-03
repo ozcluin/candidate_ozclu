@@ -123,7 +123,7 @@ function MockDigilockerPageContent() {
             <p className="text-gray-600 font-semibold mb-1">Authorization Request</p>
             <div className="grid grid-cols-2 gap-1 text-gray-500">
               <div>Portal Name:</div>
-              <div className="font-bold text-gray-800">Cluso Verification</div>
+              <div className="font-bold text-gray-800">Ozclu Verification</div>
               <div>Client ID:</div>
               <div className="font-mono">{clientId || "URA1DC8310"}</div>
             </div>
@@ -247,7 +247,7 @@ function MockDigilockerPageContent() {
                   className="mt-0.5 border-gray-300 rounded text-[#0074d9] focus:ring-[#0074d9] cursor-pointer"
                 />
                 <label htmlFor="consent" className="text-[11px] text-gray-500 leading-relaxed cursor-pointer select-none">
-                  I hereby provide my consent to DigiLocker to share my Aadhaar e-KYC profile, name, date of birth, and gender with **Cluso Verification Portal** for background check purposes.
+                  I hereby provide my consent to DigiLocker to share my Aadhaar e-KYC profile, name, date of birth, and gender with **Ozclu Verification Portal** for background check purposes.
                 </label>
               </div>
 

@@ -1,0 +1,84 @@
+.logo {
+  display: inline-flex;
+  align-items: center;
+  text-decoration: none;
+  transition: opacity 150ms ease;
+  cursor: pointer;
+}
+
+.logo:hover {
+  opacity: 0.85;
+}
+
+.logoSvg {
+  display: block;
+  width: auto;
+}
+
+/* Size configurations */
+.xs .logoSvg { height: 22px; }
+.sm .logoSvg { height: 28px; }
+.md .logoSvg { height: 38px; }
+.lg .logoSvg { height: 54px; }
+
+/* Golden O — magnifying glass animation */
+.goldenO {
+  transition: transform 250ms ease;
+}
+
+.logo:hover .goldenO,
+.logo.animating .goldenO {
+  transform: rotate(-5deg);
+  transform-origin: 18px 14px;
+}
+
+/* Glass glint shimmer effect */
+.glassGlint {
+  transition: transform 0.4s cubic-bezier(0.25, 1, 0.5, 1), opacity 0.4s ease, stroke 0.4s ease;
+  opacity: 0.75;
+}
+
+.logo:hover .glassGlint,
+.logo.animating .glassGlint {
+  transform: translate(0.6px, -0.6px) scale(1.02);
+  transform-origin: 13px 9px;
+  opacity: 1;
+  stroke: #ffffff;
+}
+
+/* Eye C animation & morphing */
+.eyeC {
+  transition: transform 250ms ease;
+}
+
+/* Eyelids morph from C-shape to full symmetric eye on hover */
+.upperLid {
+  d: path("M0 15 Q8 1.5, 18 3.5");
+  transition: d 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.logo:hover .upperLid,
+.logo.animating .upperLid {
+  d: path("M0 15 Q14 1.5, 28 15");
+}
+
+.lowerLid {
+  d: path("M0 15 Q8 28.5, 18 26.5");
+  transition: d 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.logo:hover .lowerLid,
+.logo.animating .lowerLid {
+  d: path("M0 15 Q14 28.5, 28 15");
+}
+
+/* Hidden e reveal on hover */
+.hiddenE {
+  opacity: 0.04;
+  transition: opacity 0.45s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.logo:hover .hiddenE,
+.logo.animating .hiddenE {
+  opacity: 1 !important;
+}

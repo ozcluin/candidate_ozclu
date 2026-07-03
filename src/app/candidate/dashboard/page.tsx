@@ -3,6 +3,7 @@
 import React, { useState, useEffect, Suspense } from "react";
 import { useAuth } from "src/context/AuthContext";
 import { useRouter, useSearchParams } from "next/navigation";
+import OzcluLogo from "../../components/OzcluLogo";
 
 function CandidateDashboardContent() {
   const { profile, logout, isLoading: authLoading, isAuthenticated } = useAuth();
@@ -154,10 +155,10 @@ function CandidateDashboardContent() {
     const displayValue = isRevealed ? value : getMaskedValue();
 
     return (
-      <div className="bg-[#F4FAFF] rounded-xl p-4 border border-[#D8EEFF] relative flex flex-col justify-between gap-1 shadow-xs transition-all hover:shadow-sm hover:border-[#5AB2FF]/40">
+      <div className="bg-[#f6fbf0] rounded-xl p-4 border border-[#D8EEFF] relative flex flex-col justify-between gap-1 shadow-xs transition-all hover:shadow-sm hover:border-[#016e1c]/40">
         <div className="flex justify-between items-center w-full">
           {isBadge ? (
-            <span className="bg-[#5AB2FF] text-slate-900 text-[9px] uppercase tracking-wider font-extrabold px-2 py-0.5 rounded-sm">
+            <span className="bg-[#016e1c] text-slate-900 text-[9px] uppercase tracking-wider font-extrabold px-2 py-0.5 rounded-sm">
               {label}
             </span>
           ) : (
@@ -168,7 +169,7 @@ function CandidateDashboardContent() {
           {hasIcon && (
             <button
               onClick={() => toggleReveal(maskKey)}
-              className="text-slate-400 hover:text-[#5AB2FF] transition-colors cursor-pointer flex items-center justify-center p-0.5 hover:bg-slate-900/5 rounded-full"
+              className="text-slate-400 hover:text-[#016e1c] transition-colors cursor-pointer flex items-center justify-center p-0.5 hover:bg-slate-900/5 rounded-full"
               type="button"
             >
               <span className="material-symbols-outlined text-[18px]">
@@ -194,11 +195,7 @@ function CandidateDashboardContent() {
       <header className="border-b border-[#D8EEFF] bg-white/80 backdrop-blur-md sticky top-0 z-20 shadow-2xs">
         <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex justify-between items-center">
           <div className="flex items-center gap-2">
-            <img 
-              src="/cluso-infolink.png" 
-              alt="Cluso Infolink" 
-              className="h-10 w-auto object-contain"
-            />
+            <OzcluLogo size="sm" />
           </div>
           
           <div className="flex items-center gap-4">
@@ -208,7 +205,7 @@ function CandidateDashboardContent() {
             </div>
             <button
               onClick={logout}
-              className="px-3.5 py-1.5 border border-slate-200 hover:bg-[#CAF4FF]/40 hover:border-[#5AB2FF]/30 hover:text-slate-800 text-slate-600 rounded-xl font-button-text text-xs transition-colors cursor-pointer flex items-center gap-1.5"
+              className="px-3.5 py-1.5 border border-slate-200 hover:bg-[#eaf0e4]/40 hover:border-[#016e1c]/30 hover:text-slate-800 text-slate-600 rounded-xl font-button-text text-xs transition-colors cursor-pointer flex items-center gap-1.5"
             >
               <span>Sign out</span>
               <span className="material-symbols-outlined text-[16px]">logout</span>
@@ -220,18 +217,18 @@ function CandidateDashboardContent() {
       {/* Main Container */}
       <main className="flex-1 max-w-4xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 z-10 animate-fade-in">
         {/* Welcome Hero Banner */}
-        <section className="bg-gradient-to-r from-[#CAF4FF]/30 to-[#FFF9D0]/20 border border-[#A0DEFF]/30 rounded-2xl p-6 mb-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shadow-xs">
+        <section className="bg-gradient-to-r from-[#eaf0e4]/30 to-[#FFF4CC]/20 border border-[#C6982E]/30 rounded-2xl p-6 mb-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shadow-xs">
           <div className="flex flex-col">
             <h1 className="font-display-lg text-slate-800 text-2xl animate-fade-in">
               Hello, {profile?.fullName}!
             </h1>
             <p className="font-body-sm text-slate-500 mt-1 font-medium">
-              Verification Requested by: <strong className="text-slate-800 font-bold">{profile?.orgName || "Cluso System"}</strong>
+              Verification Requested by: <strong className="text-slate-800 font-bold">{profile?.orgName || "Ozclu"}</strong>
             </p>
           </div>
           <div className="flex items-center gap-1.5">
             <span className="text-xs font-semibold font-label-caps text-slate-500 uppercase tracking-wider">Request ID:</span>
-            <span className="font-mono text-xs font-bold text-slate-850 bg-[#FFF9D0] border border-[#FFEFA3] px-2.5 py-1 rounded-lg">
+            <span className="font-mono text-xs font-bold text-slate-850 bg-[#FFF4CC] border border-[#FFEFA3] px-2.5 py-1 rounded-lg">
               {verification?.id}
             </span>
           </div>
@@ -254,9 +251,9 @@ function CandidateDashboardContent() {
 
         {/* Verification Completion State */}
         {isCompleted ? (
-          <div className="bg-white border border-[#A0DEFF]/30 rounded-2xl shadow-lg overflow-hidden animate-fade-in">
+          <div className="bg-white border border-[#C6982E]/30 rounded-2xl shadow-lg overflow-hidden animate-fade-in">
             {/* Header Card */}
-            <div className="bg-gradient-to-r from-[#5AB2FF] to-[#A0DEFF] text-slate-900 p-6 flex justify-between items-center shadow-xs">
+            <div className="bg-gradient-to-r from-[#016e1c] to-[#C6982E] text-slate-900 p-6 flex justify-between items-center shadow-xs">
               <div className="flex items-center gap-3">
                 <span className="material-symbols-outlined text-3xl bg-slate-900/10 p-2 rounded-xl text-slate-800">
                   folder_shared
@@ -319,7 +316,7 @@ function CandidateDashboardContent() {
           </div>
         ) : (
           /* Verification Form & Action Card */
-          <div className="bg-white/80 backdrop-blur-md border border-[#A0DEFF]/30 rounded-2xl p-6 sm:p-8 shadow-md flex flex-col gap-6">
+          <div className="bg-white/80 backdrop-blur-md border border-[#C6982E]/30 rounded-2xl p-6 sm:p-8 shadow-md flex flex-col gap-6">
             <div>
               <h3 className="font-headline-md text-slate-800 font-bold text-xl">Verify Identity</h3>
               <p className="font-body-sm text-slate-500 mt-1 font-medium">
@@ -329,8 +326,8 @@ function CandidateDashboardContent() {
 
             <div className="flex flex-col gap-6">
               {/* Info panel */}
-              <div className="p-5 bg-[#CAF4FF]/20 border border-[#A0DEFF]/30 rounded-xl flex flex-col sm:flex-row items-start gap-4">
-                <span className="material-symbols-outlined text-[#006699] text-3xl bg-[#CAF4FF]/50 p-2 rounded-full">
+              <div className="p-5 bg-[#eaf0e4]/20 border border-[#C6982E]/30 rounded-xl flex flex-col sm:flex-row items-start gap-4">
+                <span className="material-symbols-outlined text-[#006699] text-3xl bg-[#eaf0e4]/50 p-2 rounded-full">
                   cloud_download
                 </span>
                 <div className="flex flex-col gap-1">
@@ -342,16 +339,16 @@ function CandidateDashboardContent() {
               </div>
 
               {/* Consent Checkbox */}
-              <div className="flex items-start gap-3 p-4 bg-[#FFF9D0]/20 border border-[#FFEFA3]/45 rounded-xl">
+              <div className="flex items-start gap-3 p-4 bg-[#FFF4CC]/20 border border-[#FFEFA3]/45 rounded-xl">
                 <input
                   id="consent-checkbox"
                   type="checkbox"
                   checked={consentChecked}
                   onChange={(e) => setConsentChecked(e.target.checked)}
-                  className="w-5 h-5 mt-0.5 border border-[#A0DEFF] rounded bg-white text-primary focus:ring-[#5AB2FF] cursor-pointer shrink-0"
+                  className="w-5 h-5 mt-0.5 border border-[#C6982E] rounded bg-white text-primary focus:ring-[#016e1c] cursor-pointer shrink-0"
                 />
                 <label htmlFor="consent-checkbox" className="font-body-sm text-slate-600 cursor-pointer select-none leading-relaxed font-medium">
-                  I agree to share the necessary verification details and authorize Cluso Infolink to securely retrieve my identity records via DigiLocker for the purpose of completing my background check.
+                  I agree to share the necessary verification details and authorize Ozclu to securely retrieve my identity records via DigiLocker for the purpose of completing my background check.
                 </label>
               </div>
 
@@ -360,7 +357,7 @@ function CandidateDashboardContent() {
                   type="button"
                   onClick={handleStartDigilockerDirect}
                   disabled={isSaving || !consentChecked}
-                  className="px-6 py-3 bg-primary text-slate-900 font-bold hover:bg-[#A0DEFF] font-button-text rounded-xl transition-all flex items-center gap-2 cursor-pointer shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="px-6 py-3 bg-primary text-slate-900 font-bold hover:bg-[#C6982E] font-button-text rounded-xl transition-all flex items-center gap-2 cursor-pointer shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {isSaving ? (
                     <>

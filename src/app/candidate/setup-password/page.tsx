@@ -115,8 +115,8 @@ function SetupPasswordForm() {
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 to-slate-100 p-4">
       <div className="bg-white rounded-2xl shadow-xl border border-slate-200 p-8 max-w-md w-full">
         <div className="text-center mb-6">
-          <div className="w-14 h-14 bg-blue-50 border border-blue-200 rounded-full flex items-center justify-center mx-auto mb-3">
-            <span className="material-symbols-outlined text-blue-600 text-2xl">lock</span>
+          <div className="w-14 h-14 bg-blue-50 border border-outline-variant rounded-full flex items-center justify-center mx-auto mb-3">
+            <span className="material-symbols-outlined text-primary text-2xl">lock</span>
           </div>
           <h2 className="text-xl font-bold text-slate-900">Set Your Password</h2>
           <p className="text-slate-500 text-sm mt-1">

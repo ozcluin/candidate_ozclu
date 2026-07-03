@@ -1,0 +1,46 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="5 0.5 36 36" width="36" height="36">
+  <defs>
+    <!-- Premium radial gradient for glass lens reflection and depth -->
+    <radialGradient id="glass-lens-grad" cx="30%" cy="30%" r="70%">
+      <stop offset="0%" stop-color="#ffffff" stop-opacity="0.45" />
+      <stop offset="45%" stop-color="#ffffff" stop-opacity="0.12" />
+      <stop offset="90%" stop-color="#C6982E" stop-opacity="0.02" />
+      <stop offset="100%" stop-color="#C6982E" stop-opacity="0.08" />
+    </radialGradient>
+  </defs>
+
+  <!-- Glass lens fill -->
+  <circle cx="18" cy="14" r="10" fill="url(#glass-lens-grad)" />
+  
+  <!-- Glass frame (O) — centered at y=14 -->
+  <circle cx="18" cy="14" r="10" fill="none" stroke="#C6982E" stroke-width="3.2" />
+  
+  <!-- Lens glint / glare — perfectly curved along the inner top-left edge -->
+  <path
+    d="M 9.7 12.5 A 8.4 8.4 0 0 1 16.5 5.7"
+    fill="none"
+    stroke="#FFF4CC"
+    stroke-width="1.6"
+    stroke-linecap="round"
+  />
+  
+  <!-- Secondary soft reflection at bottom-right -->
+  <path
+    d="M 23.5 19.5 A 8.4 8.4 0 0 1 19.5 21.5"
+    fill="none"
+    stroke="#ffffff"
+    stroke-width="0.8"
+    stroke-linecap="round"
+    opacity="0.35"
+  />
+  
+  <!-- Z-shaped handle — perpendicular, on baseline -->
+  <path 
+    d="M26 21 L38 21 L26 33 L38 33" 
+    fill="none" 
+    stroke="#C6982E" 
+    stroke-width="3.2" 
+    stroke-linecap="round" 
+    stroke-linejoin="round" 
+  />
+</svg>
