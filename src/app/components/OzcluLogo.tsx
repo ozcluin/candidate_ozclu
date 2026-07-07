@@ -159,18 +159,7 @@ export default function OzcluLogo({ size = 'md', className = '', theme = 'dark' 
           u
         </text>
 
-        {/* Hidden e — reveals on hover */}
-        <text
-          x="112"
-          y="30"
-          className={styles.hiddenE}
-          fontFamily="'Playfair Display', Georgia, serif"
-          fontSize="28"
-          fontWeight="700"
-          fill={textFill}
-        >
-          e
-        </text>
+
       </svg>
     </span>
   );

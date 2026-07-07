@@ -54,6 +54,6 @@
   <!-- u -->
   <text x="92" y="30" class="logo-text" font-size="28" fill="#181d16">u</text>
   <!-- Hidden e -->
-  <text x="112" y="30" class="logo-text" font-size="28" fill="#181d16" opacity="0.04">e</text>
+  <text x="112" y="30" class="logo-text" font-size="28" fill="#181d16" opacity="0">e</text>
   
 </svg>
