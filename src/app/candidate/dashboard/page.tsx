@@ -4,6 +4,8 @@ import React, { useState, useEffect, Suspense } from "react";
 import { useAuth } from "src/context/AuthContext";
 import { useRouter, useSearchParams } from "next/navigation";
 import OzcluLogo from "../../components/OzcluLogo";
+import { INDIAN_STATES } from "src/lib/courts-mapping";
+import { Country, State, City } from "country-state-city";
 
 function CandidateDashboardContent() {
   const { profile, logout, isLoading: authLoading, isAuthenticated } = useAuth();
@@ -18,6 +20,112 @@ function CandidateDashboardContent() {
   const [isSaving, setIsSaving] = useState(false);
   const [revealStates, setRevealStates] = useState<Record<string, boolean>>({});
   const [consentChecked, setConsentChecked] = useState(false);
+
+  // Employment form state
+  const [empForm, setEmpForm] = useState({
+    country: "India", state: "", city: "",
+    companyName: "", addressLine1: "", addressLine2: "",
+    companyTelephoneCode: "+91", companyTelephone: "",
+    department: "", position: "",
+    employmentPeriodFrom: "", employmentPeriodTo: "", employeeCode: "",
+    reportingManagerName: "", reportingManagerDepartment: "",
+    reportingManagerContactCode: "+91", reportingManagerContact: "",
+    reportingManagerEmail: "", annualCTC: "",
+    employmentType: "", agencyDetails: "",
+    reasonForLeaving: "", remarks: ""
+  });
+  const [empSubmitting, setEmpSubmitting] = useState(false);
+  const [empSubmitted, setEmpSubmitted] = useState(false);
+
+  // Education form state
+  const [eduForm, setEduForm] = useState({
+    degreeType: "",
+    courseName: "",
+    boardUniversity: "",
+    institutionName: "",
+    rollNumber: "",
+    passingYear: "",
+    certificateFile: "",
+    certificateFileName: ""
+  });
+  const [eduSubmitting, setEduSubmitting] = useState(false);
+  const [eduSubmitted, setEduSubmitted] = useState(false);
+
+  // Dynamic states/districts dropdown states
+  const [districts, setDistricts] = useState<Array<{ value: string; name: string }>>([]);
+  const [districtsLoading, setDistrictsLoading] = useState(false);
+  const [states, setStates] = useState<Array<{ name: string, code: string }>>([]);
+
+  const fetchDistricts = async (stateName: string) => {
+    const matchedState = INDIAN_STATES.find(
+      s => s.name.toLowerCase() === stateName.toLowerCase()
+    );
+    if (!matchedState) {
+      setDistricts([]);
+      return;
+    }
+    setDistrictsLoading(true);
+    try {
+      const res = await fetch(`/api/ecourts-districts?state_code=${matchedState.code}`);
+      const data = await res.json();
+      if (data.success && data.districts) {
+        setDistricts(data.districts);
+      } else {
+        setDistricts([]);
+      }
+    } catch (err) {
+      console.error("Failed to load districts:", err);
+      setDistricts([]);
+    } finally {
+      setDistrictsLoading(false);
+    }
+  };
+
+  // Sync static states and cities whenever country or state changes
+  useEffect(() => {
+    if (empForm.country === "India") {
+      setStates([]);
+      if (empForm.state) {
+        fetchDistricts(empForm.state);
+      } else {
+        setDistricts([]);
+      }
+    } else {
+      const allCountries = Country.getAllCountries();
+      const matchedCountry = allCountries.find(
+        c => c.name.toLowerCase() === empForm.country.toLowerCase()
+      );
+      if (matchedCountry) {
+        // Populate states list sorted alphabetically
+        const countryStates = State.getStatesOfCountry(matchedCountry.isoCode);
+        const formattedStates = countryStates
+          .map(s => ({ name: s.name, code: s.isoCode }))
+          .sort((a, b) => a.name.localeCompare(b.name));
+        setStates(formattedStates);
+
+        // Populate cities list for selected state sorted alphabetically
+        if (empForm.state) {
+          const matchedState = countryStates.find(
+            s => s.name.toLowerCase() === empForm.state.toLowerCase()
+          );
+          if (matchedState) {
+            const stateCities = City.getCitiesOfState(matchedCountry.isoCode, matchedState.isoCode);
+            const formattedCities = stateCities
+              .map(c => ({ name: c.name, value: c.name }))
+              .sort((a, b) => a.name.localeCompare(b.name));
+            setDistricts(formattedCities);
+          } else {
+            setDistricts([]);
+          }
+        } else {
+          setDistricts([]);
+        }
+      } else {
+        setStates([]);
+        setDistricts([]);
+      }
+    }
+  }, [empForm.country, empForm.state]);
 
   useEffect(() => {
     if (urlError) {
@@ -62,6 +170,97 @@ function CandidateDashboardContent() {
 
   const toggleReveal = (field: string) => {
     setRevealStates((prev) => ({ ...prev, [field]: !prev[field] }));
+  };
+
+  const updateEmpForm = (field: string, value: string) => {
+    setEmpForm(prev => ({ ...prev, [field]: value }));
+  };
+
+  const handleEmploymentSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!empForm.companyName.trim()) {
+      setErrorMsg("Company Name is required");
+      return;
+    }
+    setEmpSubmitting(true);
+    setErrorMsg("");
+
+    // Strip "Other:" prefix from state and city for clean database records
+    const cleanState = empForm.state.startsWith("Other:") ? empForm.state.substring(6) : empForm.state;
+    const cleanCity = empForm.city.startsWith("Other:") ? empForm.city.substring(6) : empForm.city;
+
+    const cleanedData = {
+      ...empForm,
+      state: cleanState,
+      city: cleanCity
+    };
+
+    try {
+      const res = await fetch("/api/candidate-data", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "submitEmploymentData", employmentData: cleanedData })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to submit employment data");
+      setEmpSubmitted(true);
+      setSuccessMsg("Employment details submitted successfully!");
+    } catch (err: any) {
+      setErrorMsg(err.message || "Failed to submit employment details");
+    } finally {
+      setEmpSubmitting(false);
+    }
+  };
+
+  const updateEduForm = (field: string, value: string) => {
+    setEduForm(prev => ({ ...prev, [field]: value }));
+  };
+
+  const handleEducationSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!eduForm.degreeType) {
+      setErrorMsg("Degree Category is required");
+      return;
+    }
+    if (!eduForm.courseName.trim()) {
+      setErrorMsg("Course/Degree Name is required");
+      return;
+    }
+    if (!eduForm.boardUniversity.trim()) {
+      setErrorMsg("Board/University Name is required");
+      return;
+    }
+    if (!eduForm.institutionName.trim()) {
+      setErrorMsg("Institution/College Name is required");
+      return;
+    }
+    if (!eduForm.rollNumber.trim()) {
+      setErrorMsg("Roll/Registration Number is required");
+      return;
+    }
+    if (!eduForm.passingYear.trim()) {
+      setErrorMsg("Passing Year is required");
+      return;
+    }
+
+    setEduSubmitting(true);
+    setErrorMsg("");
+
+    try {
+      const res = await fetch("/api/candidate-data", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "submitEducationData", educationData: eduForm })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to submit education data");
+      setEduSubmitted(true);
+      setSuccessMsg("Education details submitted successfully!");
+    } catch (err: any) {
+      setErrorMsg(err.message || "Failed to submit education details");
+    } finally {
+      setEduSubmitting(false);
+    }
   };
 
   if (authLoading || loading) {
@@ -250,7 +449,346 @@ function CandidateDashboardContent() {
         )}
 
         {/* Verification Completion State */}
-        {isCompleted ? (
+        {verification?.type === "employment" ? (
+          /* ─── EMPLOYMENT VERIFICATION FORM ─── */
+          verification?.employmentDataSubmitted || empSubmitted ? (
+            <div className="bg-white border border-[#C6982E]/30 rounded-2xl shadow-lg overflow-hidden animate-fade-in">
+              <div className="bg-gradient-to-r from-[#016e1c] to-[#C6982E] text-slate-900 p-6 flex justify-between items-center">
+                <div className="flex items-center gap-3">
+                  <span className="material-symbols-outlined text-3xl bg-slate-900/10 p-2 rounded-xl text-slate-800">task_alt</span>
+                  <div className="flex flex-col">
+                    <h2 className="font-display-lg text-lg font-bold">Employment Details Submitted</h2>
+                    <p className="text-xs text-slate-800 font-semibold mt-0.5">{verification?.id}</p>
+                  </div>
+                </div>
+              </div>
+              <div className="p-8 flex flex-col items-center gap-5 text-center">
+                <div className="w-20 h-20 bg-[#e6f7f0] rounded-full flex items-center justify-center">
+                  <span className="material-symbols-outlined text-[#00a877] text-4xl">check_circle</span>
+                </div>
+                <h3 className="font-headline-md text-slate-800 font-bold text-xl">Thank You!</h3>
+                <p className="font-body-sm text-slate-500 max-w-md leading-relaxed">
+                  Your employment details have been submitted successfully. The verification team will now review and verify the information with your previous employer.
+                </p>
+                <div className="bg-[#f6fbf0] border border-[#eaf0e4] rounded-xl p-4 w-full max-w-sm">
+                  <div className="flex justify-between items-center text-xs">
+                    <span className="text-slate-500 font-semibold">Status</span>
+                    <span className="text-amber-600 font-bold flex items-center gap-1">
+                      <div className="w-2 h-2 bg-amber-400 rounded-full animate-pulse"></div>
+                      Under Review
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div className="bg-white/80 backdrop-blur-md border border-[#C6982E]/30 rounded-2xl shadow-md overflow-hidden animate-fade-in">
+              {/* Header */}
+              <div className="bg-gradient-to-r from-[#016e1c] to-[#C6982E] text-slate-900 p-6 flex justify-between items-center">
+                <div className="flex items-center gap-3">
+                  <span className="material-symbols-outlined text-3xl bg-slate-900/10 p-2 rounded-xl text-slate-800">work</span>
+                  <div className="flex flex-col">
+                    <h2 className="font-display-lg text-lg font-bold">Employment Verification</h2>
+                    <p className="text-xs text-slate-800 font-semibold mt-0.5">Please fill your employment details below</p>
+                  </div>
+                </div>
+              </div>
+
+              <form onSubmit={handleEmploymentSubmit} className="p-6 sm:p-8 flex flex-col gap-8">
+                {/* Section: Location */}
+                <div className="bg-slate-50/40 border border-slate-200/60 rounded-2xl p-5 md:p-6 transition-all hover:bg-slate-50/70">
+                  <h4 className="font-label-caps text-[#016e1c] text-xs uppercase tracking-wider font-bold mb-4 flex items-center gap-2 border-b border-slate-200/60 pb-2">
+                    <span className="material-symbols-outlined text-[18px]">location_on</span>
+                    Company Location
+                  </h4>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="flex flex-col gap-1.5 md:col-span-2">
+                      <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Country *</label>
+                      <select value={empForm.country} onChange={e => {
+                        updateEmpForm("country", e.target.value);
+                        updateEmpForm("state", "");
+                        updateEmpForm("city", "");
+                      }}
+                        className="border border-slate-200 rounded-xl p-3 text-sm font-semibold text-slate-800 bg-white focus:outline-none focus:ring-2 focus:ring-[#016e1c]/20 focus:border-[#016e1c] transition-all cursor-pointer shadow-2xs">
+                        <option value="">Select Country</option>
+                        {[...Country.getAllCountries()].sort((a, b) => a.name.localeCompare(b.name)).map(country => (
+                          <option key={country.isoCode} value={country.name}>{country.name}</option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div className="flex flex-col gap-1.5">
+                      <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">State *</label>
+                      <select value={empForm.state.startsWith("Other:") ? "Other" : empForm.state} onChange={e => {
+                        updateEmpForm("state", e.target.value);
+                        updateEmpForm("city", "");
+                      }}
+                        className="border border-slate-200 rounded-xl p-3 text-sm font-semibold text-slate-800 bg-white focus:outline-none focus:ring-2 focus:ring-[#016e1c]/20 focus:border-[#016e1c] transition-all cursor-pointer shadow-2xs">
+                        <option value="">Select State</option>
+                        {empForm.country === "India" ? (
+                          [...INDIAN_STATES].sort((a, b) => a.name.localeCompare(b.name)).map(s => (
+                            <option key={s.code} value={s.name}>{s.name}</option>
+                          ))
+                        ) : (
+                          states.map(s => (
+                            <option key={s.code} value={s.name}>{s.name}</option>
+                          ))
+                        )}
+                        {empForm.country && (
+                          <option value="Other">Other / Enter Manually</option>
+                        )}
+                      </select>
+                      {(empForm.state === "Other" || empForm.state.startsWith("Other:")) && (
+                        <input type="text"
+                          value={empForm.state.startsWith("Other:") ? empForm.state.substring(6) : ""}
+                          onChange={e => updateEmpForm("state", "Other:" + e.target.value)}
+                          className="border border-slate-200 rounded-xl p-3 mt-2 text-sm font-semibold text-slate-800 bg-white focus:outline-none focus:ring-2 focus:ring-[#016e1c]/20 focus:border-[#016e1c] transition-all placeholder-slate-400 shadow-2xs animate-fade-in"
+                          placeholder="Enter custom state name" />
+                      )}
+                    </div>
+
+                    <div className="flex flex-col gap-1.5">
+                      <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">City *</label>
+                      <select value={empForm.city.startsWith("Other:") ? "Other" : empForm.city} onChange={e => updateEmpForm("city", e.target.value)}
+                        disabled={!empForm.state || districtsLoading}
+                        className="border border-slate-200 rounded-xl p-3 text-sm font-semibold text-slate-800 bg-white focus:outline-none focus:ring-2 focus:ring-[#016e1c]/20 focus:border-[#016e1c] transition-all cursor-pointer shadow-2xs disabled:opacity-50 disabled:cursor-not-allowed">
+                        <option value="">{districtsLoading ? "Loading cities..." : !empForm.state ? "Select State First" : "Select City/District"}</option>
+                        {districts.map(d => (
+                          <option key={d.value} value={d.name}>{d.name}</option>
+                        ))}
+                        {empForm.state && (
+                          <option value="Other">Other / Enter Manually</option>
+                        )}
+                      </select>
+                      {(empForm.city === "Other" || empForm.city.startsWith("Other:")) && (
+                        <input type="text"
+                          value={empForm.city.startsWith("Other:") ? empForm.city.substring(6) : ""}
+                          onChange={e => updateEmpForm("city", "Other:" + e.target.value)}
+                          className="border border-slate-200 rounded-xl p-3 mt-2 text-sm font-semibold text-slate-800 bg-white focus:outline-none focus:ring-2 focus:ring-[#016e1c]/20 focus:border-[#016e1c] transition-all placeholder-slate-400 shadow-2xs animate-fade-in"
+                          placeholder="Enter custom city name" />
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Section: Company Details */}
+                <div className="bg-slate-50/40 border border-slate-200/60 rounded-2xl p-5 md:p-6 transition-all hover:bg-slate-50/70">
+                  <h4 className="font-label-caps text-[#016e1c] text-xs uppercase tracking-wider font-bold mb-4 flex items-center gap-2 border-b border-slate-200/60 pb-2">
+                    <span className="material-symbols-outlined text-[18px]">business</span>
+                    Company Details
+                  </h4>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="flex flex-col gap-1.5">
+                      <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Company Name *</label>
+                      <input type="text" value={empForm.companyName} onChange={e => updateEmpForm("companyName", e.target.value)}
+                        className="border border-slate-200 rounded-xl p-3 text-sm font-semibold text-slate-800 bg-white focus:outline-none focus:ring-2 focus:ring-[#016e1c]/20 focus:border-[#016e1c] transition-all placeholder-slate-400 shadow-2xs"
+                        placeholder="Company name" />
+                    </div>
+                    <div className="flex flex-col gap-1.5">
+                      <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Department</label>
+                      <input type="text" value={empForm.department} onChange={e => updateEmpForm("department", e.target.value)}
+                        className="border border-slate-200 rounded-xl p-3 text-sm font-semibold text-slate-800 bg-white focus:outline-none focus:ring-2 focus:ring-[#016e1c]/20 focus:border-[#016e1c] transition-all placeholder-slate-400 shadow-2xs"
+                        placeholder="Your department" />
+                    </div>
+                    <div className="flex flex-col gap-1.5 md:col-span-2">
+                      <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Address - Line 1</label>
+                      <input type="text" value={empForm.addressLine1} onChange={e => updateEmpForm("addressLine1", e.target.value)}
+                        className="border border-slate-200 rounded-xl p-3 text-sm font-semibold text-slate-800 bg-white focus:outline-none focus:ring-2 focus:ring-[#016e1c]/20 focus:border-[#016e1c] transition-all placeholder-slate-400 shadow-2xs"
+                        placeholder="Address line 1" />
+                    </div>
+                    <div className="flex flex-col gap-1.5 md:col-span-2">
+                      <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Address - Line 2</label>
+                      <input type="text" value={empForm.addressLine2} onChange={e => updateEmpForm("addressLine2", e.target.value)}
+                        className="border border-slate-200 rounded-xl p-3 text-sm font-semibold text-slate-800 bg-white focus:outline-none focus:ring-2 focus:ring-[#016e1c]/20 focus:border-[#016e1c] transition-all placeholder-slate-400 shadow-2xs"
+                        placeholder="Address line 2" />
+                    </div>
+                    <div className="flex flex-col gap-1.5">
+                      <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Company Telephone</label>
+                      <div className="flex gap-2">
+                        <select value={empForm.companyTelephoneCode} onChange={e => updateEmpForm("companyTelephoneCode", e.target.value)}
+                          className="border border-slate-200 rounded-xl p-3 text-sm font-semibold text-slate-800 bg-white focus:outline-none focus:ring-2 focus:ring-[#016e1c]/20 focus:border-[#016e1c] transition-all w-20 cursor-pointer shadow-2xs">
+                          <option value="+91">+91</option>
+                          <option value="+1">+1</option>
+                          <option value="+44">+44</option>
+                          <option value="+61">+61</option>
+                        </select>
+                        <input type="tel" value={empForm.companyTelephone} onChange={e => updateEmpForm("companyTelephone", e.target.value)}
+                          className="flex-1 border border-slate-200 rounded-xl p-3 text-sm font-semibold text-slate-800 bg-white focus:outline-none focus:ring-2 focus:ring-[#016e1c]/20 focus:border-[#016e1c] transition-all placeholder-slate-400 shadow-2xs"
+                          placeholder="Phone number" />
+                      </div>
+                    </div>
+                    <div className="flex flex-col gap-1.5">
+                      <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Position</label>
+                      <input type="text" value={empForm.position} onChange={e => updateEmpForm("position", e.target.value)}
+                        className="border border-slate-200 rounded-xl p-3 text-sm font-semibold text-slate-800 bg-white focus:outline-none focus:ring-2 focus:ring-[#016e1c]/20 focus:border-[#016e1c] transition-all placeholder-slate-400 shadow-2xs"
+                        placeholder="Your position/title" />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Section: Employment Period */}
+                <div className="bg-slate-50/40 border border-slate-200/60 rounded-2xl p-5 md:p-6 transition-all hover:bg-slate-50/70">
+                  <h4 className="font-label-caps text-[#016e1c] text-xs uppercase tracking-wider font-bold mb-4 flex items-center gap-2 border-b border-slate-200/60 pb-2">
+                    <span className="material-symbols-outlined text-[18px]">date_range</span>
+                    Employment Period & Details
+                  </h4>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="flex flex-col gap-1.5">
+                      <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Employment Period - From *</label>
+                      <input type="date" value={empForm.employmentPeriodFrom} onChange={e => updateEmpForm("employmentPeriodFrom", e.target.value)}
+                        className="border border-slate-200 rounded-xl p-3 text-sm font-semibold text-slate-800 bg-white focus:outline-none focus:ring-2 focus:ring-[#016e1c]/20 focus:border-[#016e1c] transition-all cursor-pointer shadow-2xs" />
+                    </div>
+                    <div className="flex flex-col gap-1.5">
+                      <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Employment Period - To</label>
+                      <input type="date" value={empForm.employmentPeriodTo} onChange={e => updateEmpForm("employmentPeriodTo", e.target.value)}
+                        className="border border-slate-200 rounded-xl p-3 text-sm font-semibold text-slate-800 bg-white focus:outline-none focus:ring-2 focus:ring-[#016e1c]/20 focus:border-[#016e1c] transition-all cursor-pointer shadow-2xs" />
+                    </div>
+                    <div className="flex flex-col gap-1.5 md:col-span-2">
+                      <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Employee Code</label>
+                      <input type="text" value={empForm.employeeCode} onChange={e => updateEmpForm("employeeCode", e.target.value.toUpperCase())}
+                        className="border border-slate-200 rounded-xl p-3 text-sm font-semibold text-slate-800 bg-white focus:outline-none focus:ring-2 focus:ring-[#016e1c]/20 focus:border-[#016e1c] transition-all placeholder-slate-400 uppercase shadow-2xs"
+                        placeholder="ALL CAPS" />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Section: Reporting Manager */}
+                <div className="bg-slate-50/40 border border-slate-200/60 rounded-2xl p-5 md:p-6 transition-all hover:bg-slate-50/70">
+                  <h4 className="font-label-caps text-[#016e1c] text-xs uppercase tracking-wider font-bold mb-4 flex items-center gap-2 border-b border-slate-200/60 pb-2">
+                    <span className="material-symbols-outlined text-[18px]">supervisor_account</span>
+                    Reporting Manager
+                  </h4>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="flex flex-col gap-1.5">
+                      <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Reporting Manager Name</label>
+                      <input type="text" value={empForm.reportingManagerName} onChange={e => updateEmpForm("reportingManagerName", e.target.value)}
+                        className="border border-slate-200 rounded-xl p-3 text-sm font-semibold text-slate-800 bg-white focus:outline-none focus:ring-2 focus:ring-[#016e1c]/20 focus:border-[#016e1c] transition-all placeholder-slate-400 shadow-2xs"
+                        placeholder="Manager name" />
+                    </div>
+                    <div className="flex flex-col gap-1.5">
+                      <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Department of Reporting Manager</label>
+                      <input type="text" value={empForm.reportingManagerDepartment} onChange={e => updateEmpForm("reportingManagerDepartment", e.target.value)}
+                        className="border border-slate-200 rounded-xl p-3 text-sm font-semibold text-slate-800 bg-white focus:outline-none focus:ring-2 focus:ring-[#016e1c]/20 focus:border-[#016e1c] transition-all placeholder-slate-400 shadow-2xs"
+                        placeholder="Manager department" />
+                    </div>
+                    <div className="flex flex-col gap-1.5">
+                      <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Contact No of Reporting Manager</label>
+                      <div className="flex gap-2">
+                        <select value={empForm.reportingManagerContactCode} onChange={e => updateEmpForm("reportingManagerContactCode", e.target.value)}
+                          className="border border-slate-200 rounded-xl p-3 text-sm font-semibold text-slate-800 bg-white focus:outline-none focus:ring-2 focus:ring-[#016e1c]/20 focus:border-[#016e1c] transition-all w-20 cursor-pointer shadow-2xs">
+                          <option value="+91">+91</option>
+                          <option value="+1">+1</option>
+                          <option value="+44">+44</option>
+                          <option value="+61">+61</option>
+                        </select>
+                        <input type="tel" value={empForm.reportingManagerContact} onChange={e => updateEmpForm("reportingManagerContact", e.target.value)}
+                          className="flex-1 border border-slate-200 rounded-xl p-3 text-sm font-semibold text-slate-800 bg-white focus:outline-none focus:ring-2 focus:ring-[#016e1c]/20 focus:border-[#016e1c] transition-all placeholder-slate-400 shadow-2xs"
+                          placeholder="Mobile number" />
+                      </div>
+                    </div>
+                    <div className="flex flex-col gap-1.5">
+                      <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Email ID of Reporting Manager</label>
+                      <input type="email" value={empForm.reportingManagerEmail} onChange={e => updateEmpForm("reportingManagerEmail", e.target.value)}
+                        className="border border-slate-200 rounded-xl p-3 text-sm font-semibold text-slate-800 bg-white focus:outline-none focus:ring-2 focus:ring-[#016e1c]/20 focus:border-[#016e1c] transition-all placeholder-slate-400 shadow-2xs"
+                        placeholder="manager@company.com" />
+                    </div>
+                    <div className="flex flex-col gap-1.5 md:col-span-2">
+                      <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Annual CTC</label>
+                      <input type="text" value={empForm.annualCTC} onChange={e => updateEmpForm("annualCTC", e.target.value)}
+                        className="border border-slate-200 rounded-xl p-3 text-sm font-semibold text-slate-800 bg-white focus:outline-none focus:ring-2 focus:ring-[#016e1c]/20 focus:border-[#016e1c] transition-all placeholder-slate-400 shadow-2xs"
+                        placeholder="e.g. ₹12,00,000" />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Section: Employment Type & Extras */}
+                <div className="bg-slate-50/40 border border-slate-200/60 rounded-2xl p-5 md:p-6 transition-all hover:bg-slate-50/70">
+                  <h4 className="font-label-caps text-[#016e1c] text-xs uppercase tracking-wider font-bold mb-4 flex items-center gap-2 border-b border-slate-200/60 pb-2">
+                    <span className="material-symbols-outlined text-[18px]">badge</span>
+                    Employment Type & Other Details
+                  </h4>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="flex flex-col gap-1.5">
+                      <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Employment is permanent or temporary</label>
+                      <select value={empForm.employmentType} onChange={e => updateEmpForm("employmentType", e.target.value)}
+                        className="border border-slate-200 rounded-xl p-3 text-sm font-semibold text-slate-800 bg-white focus:outline-none focus:ring-2 focus:ring-[#016e1c]/20 focus:border-[#016e1c] transition-all cursor-pointer shadow-2xs">
+                        <option value="">Select</option>
+                        <option value="Permanent">Permanent</option>
+                        <option value="Temporary">Temporary</option>
+                        <option value="Contractual">Contractual</option>
+                        <option value="Internship">Internship</option>
+                      </select>
+                    </div>
+                    <div className="flex flex-col gap-1.5">
+                      <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Agency Details (if temporary or contractual)</label>
+                      <input type="text" value={empForm.agencyDetails} onChange={e => updateEmpForm("agencyDetails", e.target.value)}
+                        className="border border-slate-200 rounded-xl p-3 text-sm font-semibold text-slate-800 bg-white focus:outline-none focus:ring-2 focus:ring-[#016e1c]/20 focus:border-[#016e1c] transition-all placeholder-slate-400 shadow-2xs"
+                        placeholder="Staffing agency name (if any)" />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Section: Reason & Remarks */}
+                <div className="bg-slate-50/40 border border-slate-200/60 rounded-2xl p-5 md:p-6 transition-all hover:bg-slate-50/70">
+                  <h4 className="font-label-caps text-[#016e1c] text-xs uppercase tracking-wider font-bold mb-4 flex items-center gap-2 border-b border-slate-200/60 pb-2">
+                    <span className="material-symbols-outlined text-[18px]">edit_note</span>
+                    Additional Information
+                  </h4>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="flex flex-col gap-1.5">
+                      <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Reason(s) for Leaving</label>
+                      <textarea value={empForm.reasonForLeaving} onChange={e => updateEmpForm("reasonForLeaving", e.target.value)}
+                        rows={3}
+                        className="border border-slate-200 rounded-xl p-3 text-sm font-semibold text-slate-800 bg-white focus:outline-none focus:ring-2 focus:ring-[#016e1c]/20 focus:border-[#016e1c] transition-all placeholder-slate-400 resize-none shadow-2xs"
+                        placeholder="Reason for leaving this employment" />
+                    </div>
+                    <div className="flex flex-col gap-1.5">
+                      <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Remarks if any</label>
+                      <textarea value={empForm.remarks} onChange={e => updateEmpForm("remarks", e.target.value)}
+                        rows={3}
+                        className="border border-slate-200 rounded-xl p-3 text-sm font-semibold text-slate-800 bg-white focus:outline-none focus:ring-2 focus:ring-[#016e1c]/20 focus:border-[#016e1c] transition-all placeholder-slate-400 resize-none shadow-2xs"
+                        placeholder="Any additional remarks" />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Consent + Submit */}
+                <div className="flex items-start gap-3 p-4 bg-[#FFF4CC]/20 border border-[#FFEFA3]/45 rounded-xl">
+                  <input
+                    id="emp-consent-checkbox"
+                    type="checkbox"
+                    checked={consentChecked}
+                    onChange={(e) => setConsentChecked(e.target.checked)}
+                    className="w-5 h-5 mt-0.5 border border-[#C6982E] rounded bg-white text-primary focus:ring-[#016e1c] cursor-pointer shrink-0"
+                  />
+                  <label htmlFor="emp-consent-checkbox" className="font-body-sm text-slate-600 cursor-pointer select-none leading-relaxed font-medium">
+                    I confirm that the information provided above is accurate and I authorize Ozclu to verify this employment information with the listed employer.
+                  </label>
+                </div>
+
+                <div className="flex justify-end gap-3">
+                  <button
+                    type="submit"
+                    disabled={empSubmitting || !consentChecked}
+                    className="px-8 py-3.5 bg-primary text-slate-900 font-bold hover:bg-[#C6982E] font-button-text rounded-xl transition-all flex items-center gap-2 cursor-pointer shadow-md disabled:opacity-50 disabled:cursor-not-allowed text-sm hover:scale-[1.01] active:scale-95"
+                  >
+                    {empSubmitting ? (
+                      <>
+                        <div className="w-5 h-5 border-2 border-slate-900 border-t-transparent rounded-full animate-spin"></div>
+                        <span>Submitting...</span>
+                      </>
+                    ) : (
+                      <>
+                        <span>Submit Employment Details</span>
+                        <span className="material-symbols-outlined text-sm">send</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+              </form>
+            </div>
+          )
+        ) : isCompleted ? (
           <div className="bg-white border border-[#C6982E]/30 rounded-2xl shadow-lg overflow-hidden animate-fade-in">
             {/* Header Card */}
             <div className="bg-gradient-to-r from-[#016e1c] to-[#C6982E] text-slate-900 p-6 flex justify-between items-center shadow-xs">
@@ -314,6 +852,185 @@ function CandidateDashboardContent() {
               </div>
             </div>
           </div>
+        ) : verification?.type === "education" ? (
+          /* ─── EDUCATION VERIFICATION FORM ─── */
+          verification?.educationDataSubmitted || eduSubmitted ? (
+            <div className="bg-white border border-[#C6982E]/30 rounded-2xl shadow-lg overflow-hidden animate-fade-in">
+              <div className="bg-gradient-to-r from-[#016e1c] to-[#C6982E] text-slate-900 p-6 flex justify-between items-center">
+                <div className="flex items-center gap-3">
+                  <span className="material-symbols-outlined text-3xl bg-slate-900/10 p-2 rounded-xl text-slate-800">task_alt</span>
+                  <div className="flex flex-col">
+                    <h2 className="font-display-lg text-lg font-bold">Education Details Submitted</h2>
+                    <p className="text-xs text-slate-800 font-semibold mt-0.5">{verification?.id}</p>
+                  </div>
+                </div>
+              </div>
+              <div className="p-8 flex flex-col items-center gap-5 text-center">
+                <div className="w-20 h-20 bg-[#e6f7f0] rounded-full flex items-center justify-center">
+                  <span className="material-symbols-outlined text-[#00a877] text-4xl">check_circle</span>
+                </div>
+                <h3 className="font-headline-md text-slate-800 font-bold text-xl">Thank You!</h3>
+                <p className="font-body-sm text-slate-500 max-w-md leading-relaxed">
+                  Your education credentials have been submitted successfully. The verification team will now review and verify the details with your institution.
+                </p>
+                <div className="bg-[#f6fbf0] border border-[#eaf0e4] rounded-xl p-4 w-full max-w-sm">
+                  <div className="flex justify-between items-center text-xs">
+                    <span className="text-slate-500 font-semibold">Status</span>
+                    <span className="text-amber-600 font-bold flex items-center gap-1">
+                      <div className="w-2 h-2 bg-amber-400 rounded-full animate-pulse"></div>
+                      Under Review
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div className="bg-white/80 backdrop-blur-md border border-[#C6982E]/30 rounded-2xl shadow-md overflow-hidden animate-fade-in">
+              {/* Header */}
+              <div className="bg-gradient-to-r from-[#016e1c] to-[#C6982E] text-slate-900 p-6 flex justify-between items-center">
+                <div className="flex items-center gap-3">
+                  <span className="material-symbols-outlined text-3xl bg-slate-900/10 p-2 rounded-xl text-slate-800">school</span>
+                  <div className="flex flex-col">
+                    <h2 className="font-display-lg text-lg font-bold">Education Verification</h2>
+                    <p className="text-xs text-slate-800 font-semibold mt-0.5">Please enter your academic credentials below</p>
+                  </div>
+                </div>
+              </div>
+
+              <form onSubmit={handleEducationSubmit} className="p-6 sm:p-8 flex flex-col gap-8">
+                {/* Section: Academic Institution */}
+                <div className="bg-slate-50/40 border border-slate-200/60 rounded-2xl p-5 md:p-6 transition-all hover:bg-slate-50/70">
+                  <h4 className="font-label-caps text-[#016e1c] text-xs uppercase tracking-wider font-bold mb-4 flex items-center gap-2 border-b border-slate-200/60 pb-2">
+                    <span className="material-symbols-outlined text-[18px]">school</span>
+                    Academic Institution
+                  </h4>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="flex flex-col gap-1.5 md:col-span-2">
+                      <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Degree Category *</label>
+                      <select value={eduForm.degreeType} onChange={e => updateEduForm("degreeType", e.target.value)}
+                        className="border border-slate-200 rounded-xl p-3 text-sm font-semibold text-slate-800 bg-white focus:outline-none focus:ring-2 focus:ring-[#016e1c]/20 focus:border-[#016e1c] transition-all cursor-pointer shadow-2xs">
+                        <option value="">Select Degree Category</option>
+                        <option value="10th / Matriculation">10th / Matriculation</option>
+                        <option value="12th / Intermediate">12th / Intermediate</option>
+                        <option value="Bachelor's Degree">Bachelor's Degree</option>
+                        <option value="Master's Degree">Master's Degree</option>
+                        <option value="Doctorate (PhD)">Doctorate (PhD)</option>
+                        <option value="Diploma">Diploma / Certification</option>
+                      </select>
+                    </div>
+
+                    <div className="flex flex-col gap-1.5">
+                      <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Course / Degree Name *</label>
+                      <input type="text" value={eduForm.courseName} onChange={e => updateEduForm("courseName", e.target.value)}
+                        className="border border-slate-200 rounded-xl p-3 text-sm font-semibold text-slate-800 bg-white focus:outline-none focus:ring-2 focus:ring-[#016e1c]/20 focus:border-[#016e1c] transition-all placeholder-slate-400 shadow-2xs"
+                        placeholder="e.g. B.Tech Computer Science, CBSE 10th" />
+                    </div>
+
+                    <div className="flex flex-col gap-1.5">
+                      <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Board / University Name *</label>
+                      <input type="text" value={eduForm.boardUniversity} onChange={e => updateEduForm("boardUniversity", e.target.value)}
+                        className="border border-slate-200 rounded-xl p-3 text-sm font-semibold text-slate-800 bg-white focus:outline-none focus:ring-2 focus:ring-[#016e1c]/20 focus:border-[#016e1c] transition-all placeholder-slate-400 shadow-2xs"
+                        placeholder="e.g. Delhi University, CBSE, VTU" />
+                    </div>
+
+                    <div className="flex flex-col gap-1.5 md:col-span-2">
+                      <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Institution / School / College Name *</label>
+                      <input type="text" value={eduForm.institutionName} onChange={e => updateEduForm("institutionName", e.target.value)}
+                        className="border border-slate-200 rounded-xl p-3 text-sm font-semibold text-slate-800 bg-white focus:outline-none focus:ring-2 focus:ring-[#016e1c]/20 focus:border-[#016e1c] transition-all placeholder-slate-400 shadow-2xs"
+                        placeholder="e.g. Hansraj College, St. Xavier's School" />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Section: Academic Identifiers */}
+                <div className="bg-slate-50/40 border border-slate-200/60 rounded-2xl p-5 md:p-6 transition-all hover:bg-slate-50/70">
+                  <h4 className="font-label-caps text-[#016e1c] text-xs uppercase tracking-wider font-bold mb-4 flex items-center gap-2 border-b border-slate-200/60 pb-2">
+                    <span className="material-symbols-outlined text-[18px]">fingerprint</span>
+                    Verification Credentials
+                  </h4>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="flex flex-col gap-1.5">
+                      <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Roll / Registration / Enrollment Number *</label>
+                      <input type="text" value={eduForm.rollNumber} onChange={e => updateEduForm("rollNumber", e.target.value)}
+                        className="border border-slate-200 rounded-xl p-3 text-sm font-semibold text-slate-800 bg-white focus:outline-none focus:ring-2 focus:ring-[#016e1c]/20 focus:border-[#016e1c] transition-all placeholder-slate-400 shadow-2xs"
+                        placeholder="Roll or Registration number" />
+                    </div>
+
+                    <div className="flex flex-col gap-1.5">
+                      <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Passing Year *</label>
+                      <input type="number" min="1950" max="2026" value={eduForm.passingYear} onChange={e => updateEduForm("passingYear", e.target.value)}
+                        className="border border-slate-200 rounded-xl p-3 text-sm font-semibold text-slate-800 bg-white focus:outline-none focus:ring-2 focus:ring-[#016e1c]/20 focus:border-[#016e1c] transition-all placeholder-slate-400 shadow-2xs"
+                        placeholder="e.g. 2023" />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Section: Upload markssheet/certificate */}
+                <div className="bg-slate-50/40 border border-slate-200/60 rounded-2xl p-5 md:p-6 transition-all hover:bg-slate-50/70">
+                  <h4 className="font-label-caps text-[#016e1c] text-xs uppercase tracking-wider font-bold mb-4 flex items-center gap-2 border-b border-slate-200/60 pb-2">
+                    <span className="material-symbols-outlined text-[18px]">upload_file</span>
+                    Certificate Proof
+                  </h4>
+                  <div className="flex flex-col gap-2">
+                    <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Upload Marksheet / Degree Certificate</label>
+                    <div className="flex flex-col items-center justify-center border-2 border-dashed border-slate-300 rounded-2xl p-6 bg-white hover:bg-slate-50/10 transition-colors relative cursor-pointer group">
+                      <input type="file" accept="image/*,application/pdf" onChange={e => {
+                        const file = e.target.files?.[0];
+                        if (file) {
+                          const reader = new FileReader();
+                          reader.onloadend = () => {
+                            updateEduForm("certificateFile", reader.result as string);
+                            updateEduForm("certificateFileName", file.name);
+                          };
+                          reader.readAsDataURL(file);
+                        }
+                      }}
+                        className="absolute inset-0 opacity-0 cursor-pointer w-full h-full" />
+                      <span className="material-symbols-outlined text-4xl text-slate-400 group-hover:text-primary transition-colors">cloud_upload</span>
+                      <p className="text-xs font-bold text-slate-700 mt-2">
+                        {eduForm.certificateFileName ? eduForm.certificateFileName : "Click or drag certificate here to upload"}
+                      </p>
+                      <p className="text-[10px] text-slate-400 mt-1 font-semibold">Supports PDF, PNG, JPG (Max 5MB)</p>
+                    </div>
+
+                    {eduForm.certificateFile && (
+                      <div className="mt-4 p-4 bg-emerald-50/30 border border-emerald-100 rounded-xl flex items-center justify-between text-xs animate-fade-in">
+                        <span className="font-semibold text-emerald-800 flex items-center gap-2">
+                          <span className="material-symbols-outlined text-emerald-600 text-sm">check_circle</span>
+                          File loaded successfully
+                        </span>
+                        <button type="button" onClick={() => {
+                          updateEduForm("certificateFile", "");
+                          updateEduForm("certificateFileName", "");
+                        }}
+                          className="text-[10px] font-bold uppercase tracking-wider text-rose-600 hover:text-rose-800 cursor-pointer">
+                          Remove
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Submit button */}
+                <div className="flex justify-end pt-4 border-t border-slate-200">
+                  <button type="submit" disabled={eduSubmitting}
+                    className="px-8 py-3 bg-primary text-slate-900 font-bold hover:bg-[#C6982E] rounded-xl transition-all shadow-md flex items-center gap-2 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed">
+                    {eduSubmitting ? (
+                      <>
+                        <div className="w-5 h-5 border-2 border-slate-900 border-t-transparent rounded-full animate-spin"></div>
+                        <span>Submitting Details...</span>
+                      </>
+                    ) : (
+                      <>
+                        <span>Submit Details</span>
+                        <span className="material-symbols-outlined text-sm">send</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+              </form>
+            </div>
+          )
         ) : (
           /* Verification Form & Action Card */
           <div className="bg-white/80 backdrop-blur-md border border-[#C6982E]/30 rounded-2xl p-6 sm:p-8 shadow-md flex flex-col gap-6">

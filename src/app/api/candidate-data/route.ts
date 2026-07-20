@@ -95,8 +95,6 @@ export async function POST(req: NextRequest) {
     }
 
     const body = await req.json();
-    const { phone, aadhaarNumber, dob, gender } = body;
-
     const { db } = await connectToDatabase();
 
     // Check if candidate verification is complete and has expired (24 hours after completion)
@@ -108,6 +106,98 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ error: "Your access has expired. Candidate login is deactivated 24 hours after verification completion." }, { status: 403 });
       }
     }
+
+    // Route based on action
+    const action = body.action;
+
+    if (action === "submitEmploymentData") {
+      const { employmentData } = body;
+
+      if (!employmentData) {
+        return NextResponse.json({ error: "Employment data is required" }, { status: 400 });
+      }
+
+      // Store employment data in the verification document
+      const result = await db.collection("verifications").updateOne(
+        { email, type: "employment" },
+        {
+          $set: {
+            employmentData: {
+              country: employmentData.country || "",
+              state: employmentData.state || "",
+              city: employmentData.city || "",
+              companyName: employmentData.companyName || "",
+              addressLine1: employmentData.addressLine1 || "",
+              addressLine2: employmentData.addressLine2 || "",
+              companyTelephoneCode: employmentData.companyTelephoneCode || "+91",
+              companyTelephone: employmentData.companyTelephone || "",
+              department: employmentData.department || "",
+              position: employmentData.position || "",
+              employmentPeriodFrom: employmentData.employmentPeriodFrom || "",
+              employmentPeriodTo: employmentData.employmentPeriodTo || "",
+              employeeCode: employmentData.employeeCode || "",
+              reportingManagerName: employmentData.reportingManagerName || "",
+              reportingManagerDepartment: employmentData.reportingManagerDepartment || "",
+              reportingManagerContactCode: employmentData.reportingManagerContactCode || "+91",
+              reportingManagerContact: employmentData.reportingManagerContact || "",
+              reportingManagerEmail: employmentData.reportingManagerEmail || "",
+              annualCTC: employmentData.annualCTC || "",
+              employmentType: employmentData.employmentType || "",
+              agencyDetails: employmentData.agencyDetails || "",
+              reasonForLeaving: employmentData.reasonForLeaving || "",
+              remarks: employmentData.remarks || "",
+            },
+            employmentDataSubmitted: true,
+            employmentDataSubmittedAt: new Date().toISOString(),
+            updatedAt: new Date()
+          }
+        }
+      );
+
+      if (result.matchedCount === 0) {
+        return NextResponse.json({ error: "Employment verification request not found" }, { status: 404 });
+      }
+
+      return NextResponse.json({ success: true });
+    }
+
+    if (action === "submitEducationData") {
+      const { educationData } = body;
+
+      if (!educationData) {
+        return NextResponse.json({ error: "Education data is required" }, { status: 400 });
+      }
+
+      // Store education data in the verification document
+      const result = await db.collection("verifications").updateOne(
+        { email, type: "education" },
+        {
+          $set: {
+            educationData: {
+              degreeType: educationData.degreeType || "",
+              courseName: educationData.courseName || "",
+              boardUniversity: educationData.boardUniversity || "",
+              institutionName: educationData.institutionName || "",
+              rollNumber: educationData.rollNumber || "",
+              passingYear: educationData.passingYear || "",
+              certificateFile: educationData.certificateFile || "",
+            },
+            educationDataSubmitted: true,
+            educationDataSubmittedAt: new Date().toISOString(),
+            updatedAt: new Date()
+          }
+        }
+      );
+
+      if (result.matchedCount === 0) {
+        return NextResponse.json({ error: "Education verification request not found" }, { status: 404 });
+      }
+
+      return NextResponse.json({ success: true });
+    }
+
+    // Default: existing phone/aadhaar/dob/gender handler
+    const { phone, aadhaarNumber, dob, gender } = body;
     
     // Encrypt sensitive PII fields
     const encryptedAadhaar = aadhaarNumber ? encrypt(aadhaarNumber) : null;
@@ -139,3 +229,4 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Failed to save details" }, { status: 500 });
   }
 }
+
