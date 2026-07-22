@@ -511,9 +511,11 @@ function CandidateDashboardContent() {
                       }}
                         className="border border-slate-200 rounded-xl p-3 text-sm font-semibold text-slate-800 bg-white focus:outline-none focus:ring-2 focus:ring-[#016e1c]/20 focus:border-[#016e1c] transition-all cursor-pointer shadow-2xs">
                         <option value="">Select Country</option>
-                        {[...Country.getAllCountries()].sort((a, b) => a.name.localeCompare(b.name)).map(country => (
-                          <option key={country.isoCode} value={country.name}>{country.name}</option>
-                        ))}
+                        <option value="India">India</option>
+                        <option value="Singapore">Singapore</option>
+                        <option value="Malaysia">Malaysia</option>
+                        <option value="Philippines">Philippines</option>
+                        <option value="UAE">UAE</option>
                       </select>
                     </div>
 

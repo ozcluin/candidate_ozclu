@@ -147,6 +147,8 @@ export async function POST(req: NextRequest) {
               reasonForLeaving: employmentData.reasonForLeaving || "",
               remarks: employmentData.remarks || "",
             },
+            ...(Array.isArray(employmentData.pastOrganisations) ? { pastOrganisations: employmentData.pastOrganisations } : {}),
+            ...(Array.isArray(employmentData.employments) ? { employments: employmentData.employments } : {}),
             employmentDataSubmitted: true,
             employmentDataSubmittedAt: new Date().toISOString(),
             updatedAt: new Date()
