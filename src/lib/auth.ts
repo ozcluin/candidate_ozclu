@@ -119,9 +119,18 @@ export const authOptions: NextAuthOptions = {
         }
 
         // Check if candidate verification is complete and has expired (24 hours after completion)
-        const verification = await db.collection("verifications").findOne({ email });
-        if (verification && verification.status === "Completed" && verification.completedAt) {
-          const completedTime = new Date(verification.completedAt).getTime();
+        // Sort by newest first, and check if there's any active non-completed request
+        const verifications = await db.collection("verifications")
+          .find({ email })
+          .sort({ createdAt: -1, _id: -1 })
+          .toArray();
+
+        const activeVer = verifications.find(v => v.status !== "Completed");
+        const latestVer = verifications[0];
+        
+        // If there's an active non-completed request, candidate is NOT expired
+        if (!activeVer && latestVer && latestVer.status === "Completed" && latestVer.completedAt) {
+          const completedTime = new Date(latestVer.completedAt).getTime();
           const twentyFourHours = 24 * 60 * 60 * 1000;
           if (Date.now() - completedTime > twentyFourHours) {
             await logAuthEvent(db, {

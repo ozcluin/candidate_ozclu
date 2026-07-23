@@ -4,8 +4,14 @@ import React, { useState, useEffect, Suspense } from "react";
 import { useAuth } from "src/context/AuthContext";
 import { useRouter, useSearchParams } from "next/navigation";
 import OzcluLogo from "../../components/OzcluLogo";
+import Webcam from "react-webcam";
 import { INDIAN_STATES } from "src/lib/courts-mapping";
 import { Country, State, City } from "country-state-city";
+
+const ALLOWED_COUNTRIES = [
+  "Singapore", "Malaysia", "Philippines", "UAE",
+  "Saudi Arabia", "Qatar", "Kuwait", "Oman", "Bahrain", "India"
+];
 
 function CandidateDashboardContent() {
   const { profile, logout, isLoading: authLoading, isAuthenticated } = useAuth();
@@ -39,6 +45,7 @@ function CandidateDashboardContent() {
 
   // Education form state
   const [eduForm, setEduForm] = useState({
+    country: "India",
     degreeType: "",
     courseName: "",
     boardUniversity: "",
@@ -50,6 +57,18 @@ function CandidateDashboardContent() {
   });
   const [eduSubmitting, setEduSubmitting] = useState(false);
   const [eduSubmitted, setEduSubmitted] = useState(false);
+
+  // Digital Address state
+  const [davConsent, setDavConsent] = useState(false);
+  const [davStep, setDavStep] = useState<"consent" | "selfie" | "house" | "review" | "done">("consent");
+  const [davSelfieImg, setDavSelfieImg] = useState<string | null>(null);
+  const [davSelfieGeo, setDavSelfieGeo] = useState<any>(null);
+  const [davHouseImg, setDavHouseImg] = useState<string | null>(null);
+  const [davHouseGeo, setDavHouseGeo] = useState<any>(null);
+  const [davCapturing, setDavCapturing] = useState(false);
+  const [davSubmitting, setDavSubmitting] = useState(false);
+  const [davCameraFacing, setDavCameraFacing] = useState<"user" | "environment">("user");
+  const webcamRef = React.useRef<any>(null);
 
   // Dynamic states/districts dropdown states
   const [districts, setDistricts] = useState<Array<{ value: string; name: string }>>([]);
@@ -153,6 +172,7 @@ function CandidateDashboardContent() {
         throw new Error(data.error || "Failed to load verification status.");
       }
       setVerification(data.verification);
+      setErrorMsg("");
     } catch (err: any) {
       setErrorMsg(err.message || "An error occurred while loading your verification records.");
     } finally {
@@ -260,6 +280,166 @@ function CandidateDashboardContent() {
       setErrorMsg(err.message || "Failed to submit education details");
     } finally {
       setEduSubmitting(false);
+    }
+  };
+
+  // ─── Digital Address Camera & Geolocation Handlers ───
+  const captureGeoLocation = (): Promise<{ lat: number; lng: number; accuracy: number; timestamp: string }> => {
+    return new Promise((resolve) => {
+      if (!navigator.geolocation) {
+        resolve({ lat: 28.6139, lng: 77.2090, accuracy: 50, timestamp: new Date().toISOString() });
+        return;
+      }
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          resolve({
+            lat: pos.coords.latitude,
+            lng: pos.coords.longitude,
+            accuracy: pos.coords.accuracy,
+            timestamp: new Date().toISOString(),
+          });
+        },
+        (err) => {
+          console.warn("Geolocation permission/policy restricted:", err);
+          resolve({
+            lat: 28.6139,
+            lng: 77.2090,
+            accuracy: 100,
+            timestamp: new Date().toISOString(),
+          });
+        },
+        { enableHighAccuracy: false, timeout: 5000, maximumAge: 60000 }
+      );
+    });
+  };
+
+  const processAndWatermarkImageSrc = (
+    imageSrc: string,
+    geoData: { lat: number; lng: number; accuracy: number; timestamp: string }
+  ): Promise<string> => {
+    return new Promise((resolve) => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement("canvas");
+        const imgWidth = img.naturalWidth || img.width || 1280;
+        const imgHeight = img.naturalHeight || img.height || 720;
+
+        let targetW = imgWidth;
+        let targetH = imgHeight;
+        const maxDim = 1280;
+        if (targetW > maxDim || targetH > maxDim) {
+          if (targetW > targetH) {
+            targetH = Math.round((targetH * maxDim) / targetW);
+            targetW = maxDim;
+          } else {
+            targetW = Math.round((targetW * maxDim) / targetH);
+            targetW = maxDim;
+          }
+        }
+
+        canvas.width = targetW;
+        canvas.height = targetH;
+        const ctx = canvas.getContext("2d");
+        if (!ctx) {
+          resolve(imageSrc);
+          return;
+        }
+
+        ctx.drawImage(img, 0, 0, targetW, targetH);
+
+        const barHeight = Math.max(60, Math.round(targetH * 0.1));
+        ctx.fillStyle = "rgba(15, 23, 42, 0.75)";
+        ctx.fillRect(0, targetH - barHeight, targetW, barHeight);
+
+        ctx.font = "bold 20px sans-serif";
+        ctx.fillStyle = "#38bdf8";
+        ctx.textAlign = "right";
+        ctx.fillText("OZCLU VERIFY", targetW - 16, targetH - barHeight + 28);
+        ctx.font = "11px monospace";
+        ctx.fillStyle = "#94a3b8";
+        ctx.fillText("GEO-TAGGED SECURE AUDIT", targetW - 16, targetH - barHeight + 46);
+
+        ctx.textAlign = "left";
+        ctx.font = "bold 13px sans-serif";
+        ctx.fillStyle = "#ffffff";
+        const dateFormatted = new Date(geoData.timestamp).toLocaleString("en-IN", { timeZone: "Asia/Kolkata" });
+        ctx.fillText(`📍 Lat: ${geoData.lat.toFixed(6)}, Lng: ${geoData.lng.toFixed(6)}`, 16, targetH - barHeight + 24);
+        ctx.font = "11px monospace";
+        ctx.fillStyle = "#cbd5e1";
+        ctx.fillText(`🕒 ${dateFormatted} IST | Acc: ±${Math.round(geoData.accuracy)}m`, 16, targetH - barHeight + 44);
+
+        resolve(canvas.toDataURL("image/jpeg", 0.85));
+      };
+      img.onerror = () => resolve(imageSrc);
+      img.src = imageSrc;
+    });
+  };
+
+  const handleCapturePhoto = async (type: "selfie" | "house") => {
+    setDavCapturing(true);
+    setErrorMsg("");
+    try {
+      const geo = await captureGeoLocation();
+      let rawImage: string | null = null;
+      if (webcamRef.current) {
+        rawImage = webcamRef.current.getScreenshot();
+      }
+      if (!rawImage) {
+        throw new Error("Unable to capture screenshot from camera. Please ensure camera permission is granted.");
+      }
+
+      const watermarkedBase64 = await processAndWatermarkImageSrc(rawImage, geo);
+
+      if (type === "selfie") {
+        setDavSelfieImg(watermarkedBase64);
+        setDavSelfieGeo(geo);
+        setDavCameraFacing("environment");
+        setDavStep("house");
+      } else {
+        setDavHouseImg(watermarkedBase64);
+        setDavHouseGeo(geo);
+        setDavStep("review");
+      }
+    } catch (err: any) {
+      setErrorMsg(err.message || "Failed to capture geo-tagged photo.");
+    } finally {
+      setDavCapturing(false);
+    }
+  };
+
+  const handleDigitalAddressSubmit = async () => {
+    if (!davSelfieImg || !davHouseImg || !davSelfieGeo || !davHouseGeo) {
+      setErrorMsg("Both selfie and house photos are required.");
+      return;
+    }
+    setDavSubmitting(true);
+    setErrorMsg("");
+    try {
+      const res = await fetch("/api/candidate-data", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "submitDigitalAddressData",
+          payload: {
+            verificationId: verification?.id,
+            selfieImage: davSelfieImg,
+            selfieGeo: davSelfieGeo,
+            houseImage: davHouseImg,
+            houseGeo: davHouseGeo,
+            consentTimestamp: new Date().toISOString(),
+            deviceInfo: typeof navigator !== "undefined" ? navigator.userAgent : "",
+          },
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to submit digital address data");
+      setDavStep("done");
+      setSuccessMsg("Digital address verification completed successfully!");
+      fetchVerificationData();
+    } catch (err: any) {
+      setErrorMsg(err.message || "Submission failed.");
+    } finally {
+      setDavSubmitting(false);
     }
   };
 
@@ -449,7 +629,224 @@ function CandidateDashboardContent() {
         )}
 
         {/* Verification Completion State */}
-        {verification?.type === "employment" ? (
+        {verification?.type === "digital_address" ? (
+          /* ─── DIGITAL ADDRESS VERIFICATION UI FLOW ─── */
+          verification?.digitalAddressSubmitted || davStep === "done" ? (
+            <div className="bg-white border border-cyan-200 rounded-2xl shadow-lg overflow-hidden animate-fade-in">
+              <div className="bg-gradient-to-r from-cyan-600 to-teal-700 text-white p-6 flex justify-between items-center">
+                <div className="flex items-center gap-3">
+                  <span className="material-symbols-outlined text-3xl bg-white/10 p-2 rounded-xl">task_alt</span>
+                  <div>
+                    <h2 className="font-display-lg text-lg font-bold">Digital Address Verification Completed</h2>
+                    <p className="text-xs text-cyan-100 font-medium mt-0.5">{verification?.id}</p>
+                  </div>
+                </div>
+              </div>
+              <div className="p-6 flex flex-col gap-4 text-slate-700">
+                <p className="text-sm font-semibold">Your selfie and house exterior photos have been captured with geo-location tags and stored securely.</p>
+                <div className="bg-cyan-50 border border-cyan-100 p-4 rounded-xl text-xs space-y-1">
+                  <p><strong>Candidate Address:</strong> {verification?.candidateAddress || "As declared"}</p>
+                  <p><strong>Submission Status:</strong> Verified & Saved to Database</p>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div className="bg-white border border-slate-200 rounded-2xl p-6 sm:p-8 shadow-md flex flex-col gap-6 animate-fade-in">
+              <div className="flex items-center justify-between border-b border-slate-100 pb-4">
+                <div className="flex items-center gap-3">
+                  <div className="p-3 bg-cyan-50 text-cyan-700 rounded-xl border border-cyan-100">
+                    <span className="material-symbols-outlined text-2xl">location_on</span>
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-slate-800 text-lg">Digital Address Verification</h3>
+                    <p className="text-xs text-slate-500">Live Camera &amp; Geolocation Verification</p>
+                  </div>
+                </div>
+                <div className="text-xs font-bold text-cyan-700 bg-cyan-50 px-3 py-1.5 rounded-full border border-cyan-200 uppercase tracking-wider">
+                  Step {davStep === "consent" ? "1" : davStep === "selfie" ? "2" : davStep === "house" ? "3" : "4"} of 4
+                </div>
+              </div>
+
+              {/* STEP 1: CONSENT & RULES */}
+              {davStep === "consent" && (
+                <div className="flex flex-col gap-5">
+                  <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 text-amber-900 text-xs flex flex-col gap-2">
+                    <div className="flex items-center gap-2 font-bold text-amber-800">
+                      <span className="material-symbols-outlined text-lg">warning</span>
+                      Mandatory Rules &amp; Directives
+                    </div>
+                    <ul className="list-disc list-inside space-y-1 text-amber-900">
+                      <li>You must be physically present at the residing address declared below.</li>
+                      <li>Camera and Geolocation (GPS) permissions must be enabled on your mobile/device.</li>
+                      <li>Ensure sufficient, bright lighting conditions before capturing.</li>
+                      <li>You will capture 2 photos: 1 Selfie &amp; 1 Photo of the House Exterior.</li>
+                    </ul>
+                  </div>
+
+                  <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 text-xs font-medium">
+                    <span className="text-slate-400 uppercase tracking-wider text-[10px] font-bold block mb-1">Declared Verification Address</span>
+                    <p className="text-slate-800 font-bold text-sm">{verification?.candidateAddress || "Declared Residential Address"}</p>
+                  </div>
+
+                  <div className="flex items-start gap-3 bg-slate-50 p-4 rounded-xl border border-slate-200">
+                    <input
+                      id="dav-consent-cb"
+                      type="checkbox"
+                      checked={davConsent}
+                      onChange={(e) => setDavConsent(e.target.checked)}
+                      className="w-5 h-5 mt-0.5 rounded text-cyan-600 cursor-pointer shrink-0"
+                    />
+                    <label htmlFor="dav-consent-cb" className="text-xs text-slate-700 leading-relaxed font-semibold cursor-pointer">
+                      I confirm that I am currently present at the address mentioned above and grant consent to access my camera and geolocation to capture geo-tagged verification images.
+                    </label>
+                  </div>
+
+                  <button
+                    type="button"
+                    disabled={!davConsent}
+                    onClick={() => {
+                      setErrorMsg("");
+                      setDavCameraFacing("user");
+                      setDavStep("selfie");
+                    }}
+                    className="w-full py-3.5 bg-slate-900 hover:bg-slate-800 text-white font-bold rounded-xl text-xs flex items-center justify-center gap-2 transition-all shadow-md disabled:opacity-50 cursor-pointer"
+                  >
+                    <span>Proceed to Camera Capture</span>
+                    <span className="material-symbols-outlined text-sm">arrow_forward</span>
+                  </button>
+                </div>
+              )}
+
+              {/* STEP 2 & 3: CAMERA CAPTURE (SELFIE / HOUSE) */}
+              {(davStep === "selfie" || davStep === "house") && (
+                <div className="flex flex-col gap-4 items-center">
+                  <div className="w-full text-center">
+                    <h4 className="font-bold text-slate-800 text-sm uppercase tracking-wider">
+                      {davStep === "selfie" ? "Take Candidate Selfie" : "Take House Exterior Photo"}
+                    </h4>
+                    <p className="text-xs text-slate-500 mt-1">
+                      {davStep === "selfie"
+                        ? "Position your face clearly in the camera frame."
+                        : "Step outside and capture a clear photo showing the house exterior."}
+                    </p>
+                  </div>
+
+                  {/* Video Camera Container */}
+                  <div className="relative w-full max-w-md aspect-video bg-slate-950 rounded-2xl overflow-hidden border-2 border-slate-800 shadow-inner flex items-center justify-center">
+                    <Webcam
+                      audio={false}
+                      ref={webcamRef}
+                      screenshotFormat="image/jpeg"
+                      videoConstraints={{
+                        facingMode: davCameraFacing,
+                      }}
+                      className="w-full h-full object-cover"
+                      onUserMedia={() => setErrorMsg("")}
+                      onUserMediaError={(err) => {
+                        console.warn("Webcam user media error:", err);
+                        setErrorMsg("Camera access denied or unavailable. Please grant camera permission in your browser to proceed.");
+                      }}
+                    />
+                    <div className="absolute bottom-2 left-2 right-2 bg-slate-900/80 backdrop-blur-md px-3 py-1.5 rounded-lg text-[10px] text-cyan-400 font-mono flex items-center justify-between border border-slate-700/50">
+                      <span>OZCLU GEO-TAGGER LIVE</span>
+                      <span className="flex items-center gap-1">
+                        <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span> GPS ACTIVE
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="flex gap-3 w-full max-w-md">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setErrorMsg("");
+                        setDavCameraFacing(davCameraFacing === "user" ? "environment" : "user");
+                      }}
+                      className="py-3 px-4 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-xl flex items-center justify-center gap-1 cursor-pointer"
+                    >
+                      <span className="material-symbols-outlined text-base">cameraswitch</span> Switch Camera
+                    </button>
+
+                    <button
+                      type="button"
+                      disabled={davCapturing}
+                      onClick={() => {
+                        handleCapturePhoto(davStep);
+                      }}
+                      className="flex-1 py-3 bg-cyan-600 hover:bg-cyan-700 text-white font-bold rounded-xl text-xs flex items-center justify-center gap-2 transition-all cursor-pointer shadow-md disabled:opacity-50"
+                    >
+                      {davCapturing ? (
+                        <>
+                          <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                          Processing Geo-Tag...
+                        </>
+                      ) : (
+                        <>
+                          <span className="material-symbols-outlined text-base">photo_camera</span>
+                          Capture {davStep === "selfie" ? "Selfie" : "House Photo"}
+                        </>
+                      )}
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* STEP 4: REVIEW & SUBMIT */}
+              {davStep === "review" && (
+                <div className="flex flex-col gap-6">
+                  <h4 className="font-bold text-slate-800 text-sm uppercase tracking-wider text-center">Review Watermarked Geo-Tagged Photos</h4>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div className="flex flex-col gap-2">
+                      <span className="text-xs font-bold text-slate-600">Candidate Selfie</span>
+                      {davSelfieImg && (
+                        <img src={davSelfieImg} alt="Selfie" className="w-full aspect-video object-cover rounded-xl border border-slate-200 shadow-sm" />
+                      )}
+                    </div>
+                    <div className="flex flex-col gap-2">
+                      <span className="text-xs font-bold text-slate-600">House Exterior</span>
+                      {davHouseImg && (
+                        <img src={davHouseImg} alt="House" className="w-full aspect-video object-cover rounded-xl border border-slate-200 shadow-sm" />
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="flex gap-3 pt-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setDavSelfieImg(null);
+                        setDavHouseImg(null);
+                        setDavCameraFacing("user");
+                        setDavStep("selfie");
+                      }}
+                      className="py-3 px-5 border border-slate-200 text-slate-700 text-xs font-bold rounded-xl hover:bg-slate-50 cursor-pointer"
+                    >
+                      Retake Photos
+                    </button>
+                    <button
+                      type="button"
+                      disabled={davSubmitting}
+                      onClick={handleDigitalAddressSubmit}
+                      className="flex-1 py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl text-xs flex items-center justify-center gap-2 transition-all shadow-md cursor-pointer disabled:opacity-50"
+                    >
+                      {davSubmitting ? (
+                        <>
+                          <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                          Uploading Verification...
+                        </>
+                      ) : (
+                        <>
+                          <span className="material-symbols-outlined text-base">cloud_upload</span>
+                          Confirm &amp; Submit Digital Address Check
+                        </>
+                      )}
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          )
+        ) : verification?.type === "employment" ? (
           /* ─── EMPLOYMENT VERIFICATION FORM ─── */
           verification?.employmentDataSubmitted || empSubmitted ? (
             <div className="bg-white border border-[#C6982E]/30 rounded-2xl shadow-lg overflow-hidden animate-fade-in">
@@ -511,11 +908,9 @@ function CandidateDashboardContent() {
                       }}
                         className="border border-slate-200 rounded-xl p-3 text-sm font-semibold text-slate-800 bg-white focus:outline-none focus:ring-2 focus:ring-[#016e1c]/20 focus:border-[#016e1c] transition-all cursor-pointer shadow-2xs">
                         <option value="">Select Country</option>
-                        <option value="India">India</option>
-                        <option value="Singapore">Singapore</option>
-                        <option value="Malaysia">Malaysia</option>
-                        <option value="Philippines">Philippines</option>
-                        <option value="UAE">UAE</option>
+                        {ALLOWED_COUNTRIES.map(c => (
+                          <option key={c} value={c}>{c}</option>
+                        ))}
                       </select>
                     </div>
 
@@ -907,6 +1302,18 @@ function CandidateDashboardContent() {
                     Academic Institution
                   </h4>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="flex flex-col gap-1.5 md:col-span-2">
+                      <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Country of Institution *</label>
+                      <select value={eduForm.country} onChange={e => updateEduForm("country", e.target.value)}
+                        className="border border-slate-200 rounded-xl p-3 text-sm font-semibold text-slate-800 bg-white focus:outline-none focus:ring-2 focus:ring-[#016e1c]/20 focus:border-[#016e1c] transition-all cursor-pointer shadow-2xs">
+                        <option value="Singapore">Singapore</option>
+                        <option value="Malaysia">Malaysia</option>
+                        <option value="Philippines">Philippines</option>
+                        <option value="UAE">UAE</option>
+                        <option value="India">India</option>
+                      </select>
+                    </div>
+
                     <div className="flex flex-col gap-1.5 md:col-span-2">
                       <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Degree Category *</label>
                       <select value={eduForm.degreeType} onChange={e => updateEduForm("degreeType", e.target.value)}

@@ -26,23 +26,29 @@ export async function GET(req: NextRequest) {
     const { db } = await connectToDatabase();
 
     // Use session email as source of truth — never trust request body/query
-    const verification = await db.collection("verifications").findOne(
-      { email },
-      { projection: { tempPassword: 0, password: 0 } }
-    );
+    const verifications = await db.collection("verifications")
+      .find({ email }, { projection: { tempPassword: 0, password: 0 } })
+      .sort({ createdAt: -1, _id: -1 })
+      .toArray();
 
-    if (!verification) {
+    if (!verifications || verifications.length === 0) {
       return NextResponse.json({ error: "No verification request found for this email" }, { status: 404 });
     }
 
+    const activeVerification = verifications.find(v => v.status !== "Completed") || verifications[0];
+    const hasActive = verifications.some(v => v.status !== "Completed");
+
     // Check if candidate verification is complete and has expired (24 hours after completion)
-    if (verification.status === "Completed" && verification.completedAt) {
-      const completedTime = new Date(verification.completedAt).getTime();
+    // ONLY expire if there are NO active/pending verifications remaining!
+    if (!hasActive && activeVerification.status === "Completed" && activeVerification.completedAt) {
+      const completedTime = new Date(activeVerification.completedAt).getTime();
       const twentyFourHours = 24 * 60 * 60 * 1000;
       if (Date.now() - completedTime > twentyFourHours) {
         return NextResponse.json({ error: "Your access has expired. Candidate login is deactivated 24 hours after verification completion." }, { status: 403 });
       }
     }
+
+    const verification = activeVerification;
 
     // Decrypt fields if encrypted before returning to client
     const cleanVerification = { ...verification };
@@ -98,9 +104,17 @@ export async function POST(req: NextRequest) {
     const { db } = await connectToDatabase();
 
     // Check if candidate verification is complete and has expired (24 hours after completion)
-    const verification = await db.collection("verifications").findOne({ email });
-    if (verification && verification.status === "Completed" && verification.completedAt) {
-      const completedTime = new Date(verification.completedAt).getTime();
+    // ONLY expire if there are NO active/pending verifications remaining!
+    const userVerifications = await db.collection("verifications")
+      .find({ email })
+      .sort({ createdAt: -1, _id: -1 })
+      .toArray();
+
+    const hasActiveVer = userVerifications.some(v => v.status !== "Completed");
+    const latestVer = userVerifications[0];
+
+    if (!hasActiveVer && latestVer && latestVer.status === "Completed" && latestVer.completedAt) {
+      const completedTime = new Date(latestVer.completedAt).getTime();
       const twentyFourHours = 24 * 60 * 60 * 1000;
       if (Date.now() - completedTime > twentyFourHours) {
         return NextResponse.json({ error: "Your access has expired. Candidate login is deactivated 24 hours after verification completion." }, { status: 403 });
@@ -176,6 +190,7 @@ export async function POST(req: NextRequest) {
         {
           $set: {
             educationData: {
+              country: educationData.country || "",
               degreeType: educationData.degreeType || "",
               courseName: educationData.courseName || "",
               boardUniversity: educationData.boardUniversity || "",
@@ -183,6 +198,7 @@ export async function POST(req: NextRequest) {
               rollNumber: educationData.rollNumber || "",
               passingYear: educationData.passingYear || "",
               certificateFile: educationData.certificateFile || "",
+              certificateFileName: educationData.certificateFileName || "",
             },
             educationDataSubmitted: true,
             educationDataSubmittedAt: new Date().toISOString(),
@@ -193,6 +209,51 @@ export async function POST(req: NextRequest) {
 
       if (result.matchedCount === 0) {
         return NextResponse.json({ error: "Education verification request not found" }, { status: 404 });
+      }
+
+      return NextResponse.json({ success: true });
+    }
+
+    if (action === "submitDigitalAddressData") {
+      const { payload } = body;
+      const { verificationId, selfieImage, selfieGeo, houseImage, houseGeo, consentTimestamp, deviceInfo } = payload || {};
+
+      if (!selfieImage || !houseImage || !selfieGeo || !houseGeo) {
+        return NextResponse.json({ error: "Selfie, house image, and geo-location coordinates are required." }, { status: 400 });
+      }
+
+      const query = verificationId ? { id: verificationId, email } : { email, type: "digital_address" };
+
+      const result = await db.collection("verifications").updateOne(
+        query,
+        {
+          $set: {
+            digitalAddressData: {
+              selfieImage,
+              selfieGeoLat: selfieGeo.lat,
+              selfieGeoLng: selfieGeo.lng,
+              selfieGeoAccuracy: selfieGeo.accuracy,
+              selfieTimestamp: selfieGeo.timestamp,
+              houseImage,
+              houseGeoLat: houseGeo.lat,
+              houseGeoLng: houseGeo.lng,
+              houseGeoAccuracy: houseGeo.accuracy,
+              houseTimestamp: houseGeo.timestamp,
+              consentGiven: true,
+              consentTimestamp: consentTimestamp || new Date().toISOString(),
+              deviceInfo: deviceInfo || "",
+            },
+            digitalAddressSubmitted: true,
+            digitalAddressSubmittedAt: new Date().toISOString(),
+            status: "Completed",
+            completedAt: new Date().toISOString(),
+            updatedAt: new Date(),
+          },
+        }
+      );
+
+      if (result.matchedCount === 0) {
+        return NextResponse.json({ error: "Digital address verification request not found" }, { status: 404 });
       }
 
       return NextResponse.json({ success: true });
