@@ -60,11 +60,13 @@ function CandidateDashboardContent() {
 
   // Digital Address state
   const [davConsent, setDavConsent] = useState(false);
-  const [davStep, setDavStep] = useState<"consent" | "selfie" | "house" | "review" | "done">("consent");
+  const [davStep, setDavStep] = useState<"consent" | "location" | "selfie" | "house" | "review" | "done">("consent");
   const [davSelfieImg, setDavSelfieImg] = useState<string | null>(null);
   const [davSelfieGeo, setDavSelfieGeo] = useState<any>(null);
   const [davHouseImg, setDavHouseImg] = useState<string | null>(null);
   const [davHouseGeo, setDavHouseGeo] = useState<any>(null);
+  const [davGeoData, setDavGeoData] = useState<any>(null);
+  const [davGeoLoading, setDavGeoLoading] = useState(false);
   const [davCapturing, setDavCapturing] = useState(false);
   const [davSubmitting, setDavSubmitting] = useState(false);
   const [davCameraFacing, setDavCameraFacing] = useState<"user" | "environment">("user");
@@ -375,11 +377,27 @@ function CandidateDashboardContent() {
     });
   };
 
+  const handleAcquireLocation = async (): Promise<any> => {
+    setDavGeoLoading(true);
+    setErrorMsg("");
+    try {
+      const geo = await captureGeoLocation();
+      setDavGeoData(geo);
+      return geo;
+    } catch (err: any) {
+      setErrorMsg("Failed to acquire GPS location. Please ensure location permissions are enabled.");
+      return null;
+    } finally {
+      setDavGeoLoading(false);
+    }
+  };
+
   const handleCapturePhoto = async (type: "selfie" | "house") => {
     setDavCapturing(true);
     setErrorMsg("");
     try {
-      const geo = await captureGeoLocation();
+      // Use pre-acquired location data if available, otherwise fetch location
+      const geo = davGeoData || (await captureGeoLocation());
       let rawImage: string | null = null;
       if (webcamRef.current) {
         rawImage = webcamRef.current.getScreenshot();
@@ -663,7 +681,7 @@ function CandidateDashboardContent() {
                   </div>
                 </div>
                 <div className="text-xs font-bold text-cyan-700 bg-cyan-50 px-3 py-1.5 rounded-full border border-cyan-200 uppercase tracking-wider">
-                  Step {davStep === "consent" ? "1" : davStep === "selfie" ? "2" : davStep === "house" ? "3" : "4"} of 4
+                  Step {davStep === "consent" ? "1" : davStep === "location" ? "2" : davStep === "selfie" ? "3" : davStep === "house" ? "4" : "5"} of 5
                 </div>
               </div>
 
@@ -704,16 +722,110 @@ function CandidateDashboardContent() {
                   <button
                     type="button"
                     disabled={!davConsent}
-                    onClick={() => {
+                    onClick={async () => {
                       setErrorMsg("");
-                      setDavCameraFacing("user");
-                      setDavStep("selfie");
+                      setDavStep("location");
+                      await handleAcquireLocation();
                     }}
                     className="w-full py-3.5 bg-slate-900 hover:bg-slate-800 text-white font-bold rounded-xl text-xs flex items-center justify-center gap-2 transition-all shadow-md disabled:opacity-50 cursor-pointer"
                   >
-                    <span>Proceed to Camera Capture</span>
+                    <span>Proceed to Location Check</span>
                     <span className="material-symbols-outlined text-sm">arrow_forward</span>
                   </button>
+                </div>
+              )}
+
+              {/* STEP 2: GPS LOCATION VERIFICATION FIRST */}
+              {davStep === "location" && (
+                <div className="flex flex-col gap-5">
+                  <div className="text-center">
+                    <h4 className="font-bold text-slate-800 text-sm uppercase tracking-wider">Acquiring GPS Location</h4>
+                    <p className="text-xs text-slate-500 mt-1">We capture your precise GPS coordinates first to ensure zero camera lag.</p>
+                  </div>
+
+                  {davGeoLoading ? (
+                    <div className="bg-cyan-50/50 border border-cyan-200/80 rounded-2xl p-8 flex flex-col items-center justify-center gap-3 text-center animate-pulse">
+                      <div className="w-12 h-12 bg-cyan-600/10 text-cyan-700 rounded-full flex items-center justify-center">
+                        <span className="material-symbols-outlined text-2xl animate-spin">location_searching</span>
+                      </div>
+                      <div className="flex flex-col gap-1">
+                        <span className="font-bold text-cyan-900 text-sm">Detecting Precise GPS Location...</span>
+                        <span className="text-xs text-cyan-700 font-medium">Please allow location permissions on your browser if prompted.</span>
+                      </div>
+                    </div>
+                  ) : davGeoData ? (
+                    <div className="bg-emerald-50/60 border border-emerald-200 rounded-2xl p-5 flex flex-col gap-4 shadow-2xs">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 bg-emerald-600 text-white rounded-xl flex items-center justify-center shrink-0 shadow-xs">
+                          <span className="material-symbols-outlined text-xl">my_location</span>
+                        </div>
+                        <div className="flex flex-col">
+                          <span className="font-bold text-emerald-900 text-sm flex items-center gap-1.5">
+                            <span>GPS Location Verified</span>
+                            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping"></span>
+                          </span>
+                          <span className="text-[11px] text-emerald-700 font-medium">Location metadata acquired successfully with zero camera lag.</span>
+                        </div>
+                      </div>
+
+                      <div className="bg-white/80 border border-emerald-100 rounded-xl p-3.5 text-xs grid grid-cols-2 gap-3 font-mono">
+                        <div>
+                          <span className="text-slate-400 text-[10px] uppercase font-bold block">Latitude</span>
+                          <span className="text-slate-800 font-bold text-xs">{davGeoData.lat.toFixed(6)}°</span>
+                        </div>
+                        <div>
+                          <span className="text-slate-400 text-[10px] uppercase font-bold block">Longitude</span>
+                          <span className="text-slate-800 font-bold text-xs">{davGeoData.lng.toFixed(6)}°</span>
+                        </div>
+                        <div>
+                          <span className="text-slate-400 text-[10px] uppercase font-bold block">Accuracy</span>
+                          <span className="text-slate-800 font-bold text-xs">±{Math.round(davGeoData.accuracy)}m</span>
+                        </div>
+                        <div>
+                          <span className="text-slate-400 text-[10px] uppercase font-bold block">Timestamp</span>
+                          <span className="text-slate-800 font-bold text-[11px]">
+                            {new Date(davGeoData.timestamp).toLocaleTimeString("en-IN", { timeZone: "Asia/Kolkata" })} IST
+                          </span>
+                        </div>
+                      </div>
+
+                      <div className="flex gap-3 pt-1">
+                        <button
+                          type="button"
+                          onClick={handleAcquireLocation}
+                          className="py-3 px-4 border border-slate-200 text-slate-700 text-xs font-bold rounded-xl hover:bg-slate-100 transition-all cursor-pointer flex items-center gap-1.5"
+                        >
+                          <span className="material-symbols-outlined text-base">refresh</span>
+                          Refresh Location
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setErrorMsg("");
+                            setDavCameraFacing("user");
+                            setDavStep("selfie");
+                          }}
+                          className="flex-1 py-3 bg-slate-900 hover:bg-slate-800 text-white font-bold rounded-xl text-xs flex items-center justify-center gap-2 transition-all shadow-md cursor-pointer"
+                        >
+                          <span>Open Camera &amp; Take Selfie</span>
+                          <span className="material-symbols-outlined text-sm">photo_camera</span>
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="bg-rose-50 border border-rose-200 rounded-2xl p-5 flex flex-col items-center text-center gap-3">
+                      <span className="material-symbols-outlined text-3xl text-rose-600">location_off</span>
+                      <span className="text-xs text-rose-800 font-bold">Unable to detect GPS location</span>
+                      <button
+                        type="button"
+                        onClick={handleAcquireLocation}
+                        className="py-2.5 px-5 bg-rose-600 text-white text-xs font-bold rounded-xl hover:bg-rose-700 transition-all cursor-pointer"
+                      >
+                        Try Again
+                      </button>
+                    </div>
+                  )}
                 </div>
               )}
 
