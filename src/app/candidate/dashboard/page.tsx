@@ -60,13 +60,15 @@ function CandidateDashboardContent() {
 
   // Digital Address state
   const [davConsent, setDavConsent] = useState(false);
-  const [davStep, setDavStep] = useState<"consent" | "location" | "selfie" | "house" | "review" | "done">("consent");
+  const [davStep, setDavStep] = useState<"consent" | "location" | "selfie" | "house_location" | "house" | "review" | "done">("consent");
   const [davSelfieImg, setDavSelfieImg] = useState<string | null>(null);
   const [davSelfieGeo, setDavSelfieGeo] = useState<any>(null);
   const [davHouseImg, setDavHouseImg] = useState<string | null>(null);
   const [davHouseGeo, setDavHouseGeo] = useState<any>(null);
   const [davGeoData, setDavGeoData] = useState<any>(null);
   const [davGeoLoading, setDavGeoLoading] = useState(false);
+  const [davHouseGeoData, setDavHouseGeoData] = useState<any>(null);
+  const [davHouseGeoLoading, setDavHouseGeoLoading] = useState(false);
   const [davCapturing, setDavCapturing] = useState(false);
   const [davSubmitting, setDavSubmitting] = useState(false);
   const [davCameraFacing, setDavCameraFacing] = useState<"user" | "environment">("user");
@@ -392,12 +394,30 @@ function CandidateDashboardContent() {
     }
   };
 
+  const handleAcquireHouseLocation = async (): Promise<any> => {
+    setDavHouseGeoLoading(true);
+    setErrorMsg("");
+    try {
+      const geo = await captureGeoLocation();
+      setDavHouseGeoData(geo);
+      return geo;
+    } catch (err: any) {
+      setErrorMsg("Failed to acquire house GPS location. Please ensure location permissions are enabled.");
+      return null;
+    } finally {
+      setDavHouseGeoLoading(false);
+    }
+  };
+
   const handleCapturePhoto = async (type: "selfie" | "house") => {
     setDavCapturing(true);
     setErrorMsg("");
     try {
-      // Use pre-acquired location data if available, otherwise fetch location
-      const geo = davGeoData || (await captureGeoLocation());
+      // Use pre-acquired location data for selfie vs fresh location for house photo
+      const geo = type === "selfie"
+        ? (davGeoData || (await captureGeoLocation()))
+        : (davHouseGeoData || (await captureGeoLocation()));
+
       let rawImage: string | null = null;
       if (webcamRef.current) {
         rawImage = webcamRef.current.getScreenshot();
@@ -411,8 +431,8 @@ function CandidateDashboardContent() {
       if (type === "selfie") {
         setDavSelfieImg(watermarkedBase64);
         setDavSelfieGeo(geo);
-        setDavCameraFacing("environment");
-        setDavStep("house");
+        setDavStep("house_location");
+        handleAcquireHouseLocation();
       } else {
         setDavHouseImg(watermarkedBase64);
         setDavHouseGeo(geo);
@@ -820,6 +840,100 @@ function CandidateDashboardContent() {
                       <button
                         type="button"
                         onClick={handleAcquireLocation}
+                        className="py-2.5 px-5 bg-rose-600 text-white text-xs font-bold rounded-xl hover:bg-rose-700 transition-all cursor-pointer"
+                      >
+                        Try Again
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* STEP 4: HOUSE EXTERIOR LOCATION CHECK */}
+              {davStep === "house_location" && (
+                <div className="flex flex-col gap-5">
+                  <div className="text-center">
+                    <h4 className="font-bold text-slate-800 text-sm uppercase tracking-wider">Step Outside &amp; Check House GPS</h4>
+                    <p className="text-xs text-slate-500 mt-1">Please step outside to your house/building exterior to capture fresh GPS location for the house photo.</p>
+                  </div>
+
+                  {davHouseGeoLoading ? (
+                    <div className="bg-cyan-50/50 border border-cyan-200/80 rounded-2xl p-8 flex flex-col items-center justify-center gap-3 text-center animate-pulse">
+                      <div className="w-12 h-12 bg-cyan-600/10 text-cyan-700 rounded-full flex items-center justify-center">
+                        <span className="material-symbols-outlined text-2xl animate-spin">location_searching</span>
+                      </div>
+                      <div className="flex flex-col gap-1">
+                        <span className="font-bold text-cyan-900 text-sm">Detecting House Exterior GPS Location...</span>
+                        <span className="text-xs text-cyan-700 font-medium">Acquiring fresh coordinates at house exterior...</span>
+                      </div>
+                    </div>
+                  ) : davHouseGeoData ? (
+                    <div className="bg-emerald-50/60 border border-emerald-200 rounded-2xl p-5 flex flex-col gap-4 shadow-2xs">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 bg-emerald-600 text-white rounded-xl flex items-center justify-center shrink-0 shadow-xs">
+                          <span className="material-symbols-outlined text-xl">home_pin</span>
+                        </div>
+                        <div className="flex flex-col">
+                          <span className="font-bold text-emerald-900 text-sm flex items-center gap-1.5">
+                            <span>House Exterior GPS Verified</span>
+                            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping"></span>
+                          </span>
+                          <span className="text-[11px] text-emerald-700 font-medium">Fresh location coordinates captured specifically for the house exterior photo.</span>
+                        </div>
+                      </div>
+
+                      <div className="bg-white/80 border border-emerald-100 rounded-xl p-3.5 text-xs grid grid-cols-2 gap-3 font-mono">
+                        <div>
+                          <span className="text-slate-400 text-[10px] uppercase font-bold block">House Latitude</span>
+                          <span className="text-slate-800 font-bold text-xs">{davHouseGeoData.lat.toFixed(6)}°</span>
+                        </div>
+                        <div>
+                          <span className="text-slate-400 text-[10px] uppercase font-bold block">House Longitude</span>
+                          <span className="text-slate-800 font-bold text-xs">{davHouseGeoData.lng.toFixed(6)}°</span>
+                        </div>
+                        <div>
+                          <span className="text-slate-400 text-[10px] uppercase font-bold block">Accuracy</span>
+                          <span className="text-slate-800 font-bold text-xs">±{Math.round(davHouseGeoData.accuracy)}m</span>
+                        </div>
+                        <div>
+                          <span className="text-slate-400 text-[10px] uppercase font-bold block">Timestamp</span>
+                          <span className="text-slate-800 font-bold text-[11px]">
+                            {new Date(davHouseGeoData.timestamp).toLocaleTimeString("en-IN", { timeZone: "Asia/Kolkata" })} IST
+                          </span>
+                        </div>
+                      </div>
+
+                      <div className="flex gap-3 pt-1">
+                        <button
+                          type="button"
+                          onClick={handleAcquireHouseLocation}
+                          className="py-3 px-4 border border-slate-200 text-slate-700 text-xs font-bold rounded-xl hover:bg-slate-100 transition-all cursor-pointer flex items-center gap-1.5"
+                        >
+                          <span className="material-symbols-outlined text-base">refresh</span>
+                          Refresh Location
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setErrorMsg("");
+                            setDavCameraFacing("environment");
+                            setDavStep("house");
+                          }}
+                          className="flex-1 py-3 bg-slate-900 hover:bg-slate-800 text-white font-bold rounded-xl text-xs flex items-center justify-center gap-2 transition-all shadow-md cursor-pointer"
+                        >
+                          <span>Open Rear Camera &amp; Take House Photo</span>
+                          <span className="material-symbols-outlined text-sm">photo_camera</span>
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="bg-rose-50 border border-rose-200 rounded-2xl p-5 flex flex-col items-center text-center gap-3">
+                      <span className="material-symbols-outlined text-3xl text-rose-600">location_off</span>
+                      <span className="text-xs text-rose-800 font-bold">Unable to detect house exterior location</span>
+                      <button
+                        type="button"
+                        onClick={handleAcquireHouseLocation}
                         className="py-2.5 px-5 bg-rose-600 text-white text-xs font-bold rounded-xl hover:bg-rose-700 transition-all cursor-pointer"
                       >
                         Try Again
