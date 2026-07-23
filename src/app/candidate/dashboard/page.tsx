@@ -721,6 +721,35 @@ function CandidateDashboardContent() {
                     </ul>
                   </div>
 
+                  {/* 2D Visual Guide Cards */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div className="bg-cyan-50/50 border border-cyan-100/80 rounded-2xl p-4 flex flex-col items-center text-center gap-2.5 shadow-2xs">
+                      <div className="w-full h-36 bg-white rounded-xl overflow-hidden border border-cyan-100 flex items-center justify-center p-2 shadow-2xs">
+                        <img src="/images/selfie_guide.png" alt="Selfie Guide" className="h-full w-full object-contain" />
+                      </div>
+                      <div className="flex flex-col gap-0.5">
+                        <span className="font-bold text-slate-800 text-xs flex items-center justify-center gap-1.5">
+                          <span className="material-symbols-outlined text-base text-cyan-600">photo_camera</span>
+                          1. Candidate Selfie Photo
+                        </span>
+                        <span className="text-[11px] text-slate-500 font-medium leading-normal">Take a clear, well-lit front-facing selfie of your face.</span>
+                      </div>
+                    </div>
+
+                    <div className="bg-emerald-50/50 border border-emerald-100/80 rounded-2xl p-4 flex flex-col items-center text-center gap-2.5 shadow-2xs">
+                      <div className="w-full h-36 bg-white rounded-xl overflow-hidden border border-emerald-100 flex items-center justify-center p-2 shadow-2xs">
+                        <img src="/images/house_guide.png" alt="House Exterior Guide" className="h-full w-full object-contain" />
+                      </div>
+                      <div className="flex flex-col gap-0.5">
+                        <span className="font-bold text-slate-800 text-xs flex items-center justify-center gap-1.5">
+                          <span className="material-symbols-outlined text-base text-emerald-600">home_pin</span>
+                          2. House / Building Exterior
+                        </span>
+                        <span className="text-[11px] text-slate-500 font-medium leading-normal">Step outside to take a photo of your house or apartment building.</span>
+                      </div>
+                    </div>
+                  </div>
+
                   <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 text-xs font-medium">
                     <span className="text-slate-400 uppercase tracking-wider text-[10px] font-bold block mb-1">Declared Verification Address</span>
                     <p className="text-slate-800 font-bold text-sm">{verification?.candidateAddress || "Declared Residential Address"}</p>
