@@ -1313,19 +1313,19 @@ function CandidateDashboardContent() {
                   </h4>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="flex flex-col gap-1.5">
-                      <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Reporting Manager Name</label>
+                      <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Reporting Manager Name (Optional)</label>
                       <input type="text" value={empForm.reportingManagerName} onChange={e => updateEmpForm("reportingManagerName", e.target.value)}
                         className="border border-slate-200 rounded-xl p-3 text-sm font-semibold text-slate-800 bg-white focus:outline-none focus:ring-2 focus:ring-[#016e1c]/20 focus:border-[#016e1c] transition-all placeholder-slate-400 shadow-2xs"
                         placeholder="Manager name" />
                     </div>
                     <div className="flex flex-col gap-1.5">
-                      <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Department of Reporting Manager</label>
+                      <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Department of Reporting Manager (Optional)</label>
                       <input type="text" value={empForm.reportingManagerDepartment} onChange={e => updateEmpForm("reportingManagerDepartment", e.target.value)}
                         className="border border-slate-200 rounded-xl p-3 text-sm font-semibold text-slate-800 bg-white focus:outline-none focus:ring-2 focus:ring-[#016e1c]/20 focus:border-[#016e1c] transition-all placeholder-slate-400 shadow-2xs"
                         placeholder="Manager department" />
                     </div>
                     <div className="flex flex-col gap-1.5">
-                      <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Contact No of Reporting Manager</label>
+                      <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Contact No of Reporting Manager (Optional)</label>
                       <div className="flex gap-2">
                         <select value={empForm.reportingManagerContactCode} onChange={e => updateEmpForm("reportingManagerContactCode", e.target.value)}
                           className="border border-slate-200 rounded-xl p-3 text-sm font-semibold text-slate-800 bg-white focus:outline-none focus:ring-2 focus:ring-[#016e1c]/20 focus:border-[#016e1c] transition-all w-20 cursor-pointer shadow-2xs">
@@ -1340,7 +1340,7 @@ function CandidateDashboardContent() {
                       </div>
                     </div>
                     <div className="flex flex-col gap-1.5">
-                      <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Email ID of Reporting Manager</label>
+                      <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Email ID of Reporting Manager (Optional)</label>
                       <input type="email" value={empForm.reportingManagerEmail} onChange={e => updateEmpForm("reportingManagerEmail", e.target.value)}
                         className="border border-slate-200 rounded-xl p-3 text-sm font-semibold text-slate-800 bg-white focus:outline-none focus:ring-2 focus:ring-[#016e1c]/20 focus:border-[#016e1c] transition-all placeholder-slate-400 shadow-2xs"
                         placeholder="manager@company.com" />
