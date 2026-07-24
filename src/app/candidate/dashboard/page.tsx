@@ -38,7 +38,8 @@ function CandidateDashboardContent() {
     reportingManagerContactCode: "+91", reportingManagerContact: "",
     reportingManagerEmail: "", annualCTC: "",
     employmentType: "", agencyDetails: "",
-    reasonForLeaving: "", remarks: ""
+    reasonForLeaving: "", remarks: "",
+    experienceLetterFile: "", experienceLetterFileName: ""
   });
   const [empSubmitting, setEmpSubmitting] = useState(false);
   const [empSubmitted, setEmpSubmitted] = useState(false);
@@ -1380,11 +1381,11 @@ function CandidateDashboardContent() {
                   </div>
                 </div>
 
-                {/* Section: Reason & Remarks */}
+                {/* Section: Reason, Remarks & Relieving Letter Attachment */}
                 <div className="bg-slate-50/40 border border-slate-200/60 rounded-2xl p-5 md:p-6 transition-all hover:bg-slate-50/70">
                   <h4 className="font-label-caps text-[#016e1c] text-xs uppercase tracking-wider font-bold mb-4 flex items-center gap-2 border-b border-slate-200/60 pb-2">
                     <span className="material-symbols-outlined text-[18px]">edit_note</span>
-                    Additional Information
+                    Additional Information &amp; Attachments
                   </h4>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="flex flex-col gap-1.5">
@@ -1400,6 +1401,59 @@ function CandidateDashboardContent() {
                         rows={3}
                         className="border border-slate-200 rounded-xl p-3 text-sm font-semibold text-slate-800 bg-white focus:outline-none focus:ring-2 focus:ring-[#016e1c]/20 focus:border-[#016e1c] transition-all placeholder-slate-400 resize-none shadow-2xs"
                         placeholder="Any additional remarks" />
+                    </div>
+
+                    {/* Relieving / Experience Letter Attachment (Max 2MB) */}
+                    <div className="flex flex-col gap-1.5 md:col-span-2 pt-2 border-t border-slate-200/60">
+                      <label className="text-[10px] font-bold text-[#016e1c] uppercase tracking-wider">
+                        Relieving / Experience Letter Attachment (PDF / Image, Max 2MB)
+                      </label>
+                      {empForm.experienceLetterFile ? (
+                        <div className="border border-emerald-200 rounded-xl p-3 bg-emerald-50/50 flex items-center justify-between">
+                          <div className="flex items-center gap-2 overflow-hidden">
+                            <span className="material-symbols-outlined text-emerald-700 text-xl">description</span>
+                            <div className="flex flex-col truncate">
+                              <span className="text-xs font-bold text-slate-800 truncate">{empForm.experienceLetterFileName || "Relieving_Letter.pdf"}</span>
+                              <span className="text-[10px] text-emerald-700 font-semibold">Attachment Ready (Will be shown in Report Appendix)</span>
+                            </div>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              updateEmpForm("experienceLetterFile", "");
+                              updateEmpForm("experienceLetterFileName", "");
+                            }}
+                            className="px-2.5 py-1 rounded-lg border border-red-200 bg-white hover:bg-red-50 text-red-700 font-bold text-[10px] transition-colors cursor-pointer"
+                          >
+                            Remove
+                          </button>
+                        </div>
+                      ) : (
+                        <label className="border-2 border-dashed border-slate-200 hover:border-[#016e1c] rounded-xl p-3 bg-white hover:bg-slate-50 transition-all flex items-center justify-center gap-2 cursor-pointer">
+                          <span className="material-symbols-outlined text-[#016e1c] text-lg">attach_file</span>
+                          <span className="text-xs font-bold text-[#016e1c]">Upload Relieving / Experience Letter (Max 2MB)</span>
+                          <input
+                            type="file"
+                            accept=".pdf,.jpg,.jpeg,.png"
+                            className="hidden"
+                            onChange={(e) => {
+                              const file = e.target.files?.[0];
+                              if (!file) return;
+                              if (file.size > 2 * 1024 * 1024) {
+                                setErrorMsg(`File "${file.name}" exceeds 2MB limit. Please upload a file smaller than 2MB.`);
+                                return;
+                              }
+                              const fileName = file.name;
+                              const reader = new FileReader();
+                              reader.onloadend = () => {
+                                updateEmpForm("experienceLetterFile", reader.result as string);
+                                updateEmpForm("experienceLetterFileName", fileName);
+                              };
+                              reader.readAsDataURL(file);
+                            }}
+                          />
+                        </label>
+                      )}
                     </div>
                   </div>
                 </div>

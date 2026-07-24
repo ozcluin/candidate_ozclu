@@ -185,6 +185,8 @@ export async function POST(req: NextRequest) {
               agencyDetails: employmentData.agencyDetails || "",
               reasonForLeaving: employmentData.reasonForLeaving || "",
               remarks: employmentData.remarks || "",
+              experienceLetterFile: employmentData.experienceLetterFile || "",
+              experienceLetterFileName: employmentData.experienceLetterFileName || "",
             },
             ...(Array.isArray(employmentData.pastOrganisations) ? { pastOrganisations: employmentData.pastOrganisations } : {}),
             ...(Array.isArray(employmentData.employments) ? { employments: employmentData.employments } : {}),
