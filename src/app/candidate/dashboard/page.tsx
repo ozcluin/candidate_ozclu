@@ -1345,12 +1345,6 @@ function CandidateDashboardContent() {
                         className="border border-slate-200 rounded-xl p-3 text-sm font-semibold text-slate-800 bg-white focus:outline-none focus:ring-2 focus:ring-[#016e1c]/20 focus:border-[#016e1c] transition-all placeholder-slate-400 shadow-2xs"
                         placeholder="manager@company.com" />
                     </div>
-                    <div className="flex flex-col gap-1.5 md:col-span-2">
-                      <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Annual CTC</label>
-                      <input type="text" value={empForm.annualCTC} onChange={e => updateEmpForm("annualCTC", e.target.value)}
-                        className="border border-slate-200 rounded-xl p-3 text-sm font-semibold text-slate-800 bg-white focus:outline-none focus:ring-2 focus:ring-[#016e1c]/20 focus:border-[#016e1c] transition-all placeholder-slate-400 shadow-2xs"
-                        placeholder="e.g. ₹12,00,000" />
-                    </div>
                   </div>
                 </div>
 
@@ -1360,7 +1354,7 @@ function CandidateDashboardContent() {
                     <span className="material-symbols-outlined text-[18px]">badge</span>
                     Employment Type & Other Details
                   </h4>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <div className="flex flex-col gap-1.5">
                       <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Employment is permanent or temporary</label>
                       <select value={empForm.employmentType} onChange={e => updateEmpForm("employmentType", e.target.value)}
@@ -1377,6 +1371,12 @@ function CandidateDashboardContent() {
                       <input type="text" value={empForm.agencyDetails} onChange={e => updateEmpForm("agencyDetails", e.target.value)}
                         className="border border-slate-200 rounded-xl p-3 text-sm font-semibold text-slate-800 bg-white focus:outline-none focus:ring-2 focus:ring-[#016e1c]/20 focus:border-[#016e1c] transition-all placeholder-slate-400 shadow-2xs"
                         placeholder="Staffing agency name (if any)" />
+                    </div>
+                    <div className="flex flex-col gap-1.5">
+                      <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Annual CTC</label>
+                      <input type="text" value={empForm.annualCTC} onChange={e => updateEmpForm("annualCTC", e.target.value)}
+                        className="border border-slate-200 rounded-xl p-3 text-sm font-semibold text-slate-800 bg-white focus:outline-none focus:ring-2 focus:ring-[#016e1c]/20 focus:border-[#016e1c] transition-all placeholder-slate-400 shadow-2xs"
+                        placeholder="e.g. ₹12,00,000" />
                     </div>
                   </div>
                 </div>
