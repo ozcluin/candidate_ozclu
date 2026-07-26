@@ -289,32 +289,62 @@ function CandidateDashboardContent() {
   };
 
   // ─── Digital Address Camera & Geolocation Handlers ───
+  // Uses watchPosition for 5 seconds with high accuracy to get the best possible GPS fix.
+  // Keeps refining throughout the window and resolves with the most accurate reading.
   const captureGeoLocation = (): Promise<{ lat: number; lng: number; accuracy: number; timestamp: string }> => {
     return new Promise((resolve) => {
       if (!navigator.geolocation) {
         resolve({ lat: 28.6139, lng: 77.2090, accuracy: 50, timestamp: new Date().toISOString() });
         return;
       }
-      navigator.geolocation.getCurrentPosition(
+
+      let bestReading: { lat: number; lng: number; accuracy: number; timestamp: string } | null = null;
+
+      const watchId = navigator.geolocation.watchPosition(
         (pos) => {
-          resolve({
+          const current = {
             lat: pos.coords.latitude,
             lng: pos.coords.longitude,
             accuracy: pos.coords.accuracy,
             timestamp: new Date().toISOString(),
-          });
+          };
+          // Keep the reading with the smallest (best) accuracy value
+          if (!bestReading || current.accuracy < bestReading.accuracy) {
+            bestReading = current;
+          }
+          // If we already hit ≤ 50 m, we can resolve early
+          if (bestReading.accuracy <= 50) {
+            navigator.geolocation.clearWatch(watchId);
+            resolve(bestReading);
+          }
         },
         (err) => {
           console.warn("Geolocation permission/policy restricted:", err);
-          resolve({
+          navigator.geolocation.clearWatch(watchId);
+          resolve(
+            bestReading || {
+              lat: 28.6139,
+              lng: 77.2090,
+              accuracy: 100,
+              timestamp: new Date().toISOString(),
+            }
+          );
+        },
+        { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+      );
+
+      // After 5 seconds, stop watching and resolve with the best reading so far
+      setTimeout(() => {
+        navigator.geolocation.clearWatch(watchId);
+        resolve(
+          bestReading || {
             lat: 28.6139,
             lng: 77.2090,
             accuracy: 100,
             timestamp: new Date().toISOString(),
-          });
-        },
-        { enableHighAccuracy: false, timeout: 5000, maximumAge: 60000 }
-      );
+          }
+        );
+      }, 5000);
     });
   };
 
@@ -804,21 +834,43 @@ function CandidateDashboardContent() {
                       </div>
                     </div>
                   ) : davGeoData ? (
-                    <div className="bg-emerald-50/60 border border-emerald-200 rounded-2xl p-5 flex flex-col gap-4 shadow-2xs">
+                    <div className={`border rounded-2xl p-5 flex flex-col gap-4 shadow-2xs ${
+                      davGeoData.accuracy <= 50
+                        ? "bg-emerald-50/60 border-emerald-200"
+                        : "bg-amber-50/60 border-amber-200"
+                    }`}>
                       <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 bg-emerald-600 text-white rounded-xl flex items-center justify-center shrink-0 shadow-xs">
-                          <span className="material-symbols-outlined text-xl">my_location</span>
+                        <div className={`w-10 h-10 text-white rounded-xl flex items-center justify-center shrink-0 shadow-xs ${
+                          davGeoData.accuracy <= 50 ? "bg-emerald-600" : "bg-amber-600"
+                        }`}>
+                          <span className="material-symbols-outlined text-xl">
+                            {davGeoData.accuracy <= 50 ? "my_location" : "location_searching"}
+                          </span>
                         </div>
                         <div className="flex flex-col">
-                          <span className="font-bold text-emerald-900 text-sm flex items-center gap-1.5">
-                            <span>GPS Location Verified</span>
-                            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping"></span>
-                          </span>
-                          <span className="text-[11px] text-emerald-700 font-medium">Location metadata acquired successfully with zero camera lag.</span>
+                          {davGeoData.accuracy <= 50 ? (
+                            <>
+                              <span className="font-bold text-emerald-900 text-sm flex items-center gap-1.5">
+                                <span>GPS Location Verified</span>
+                                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping"></span>
+                              </span>
+                              <span className="text-[11px] text-emerald-700 font-medium">Accuracy ≤ 50m — ready to capture selfie.</span>
+                            </>
+                          ) : (
+                            <>
+                              <span className="font-bold text-amber-900 text-sm flex items-center gap-1.5">
+                                <span>Location Accuracy Too Low</span>
+                                <span className="material-symbols-outlined text-base text-amber-600">warning</span>
+                              </span>
+                              <span className="text-[11px] text-amber-700 font-medium">Current accuracy is ±{Math.round(davGeoData.accuracy)}m — must be ≤ 50m to proceed. Please move outdoors or refresh.</span>
+                            </>
+                          )}
                         </div>
                       </div>
 
-                      <div className="bg-white/80 border border-emerald-100 rounded-xl p-3.5 text-xs grid grid-cols-2 gap-3 font-mono">
+                      <div className={`bg-white/80 border rounded-xl p-3.5 text-xs grid grid-cols-2 gap-3 font-mono ${
+                        davGeoData.accuracy <= 50 ? "border-emerald-100" : "border-amber-100"
+                      }`}>
                         <div>
                           <span className="text-slate-400 text-[10px] uppercase font-bold block">Latitude</span>
                           <span className="text-slate-800 font-bold text-xs">{davGeoData.lat.toFixed(6)}°</span>
@@ -829,7 +881,9 @@ function CandidateDashboardContent() {
                         </div>
                         <div>
                           <span className="text-slate-400 text-[10px] uppercase font-bold block">Accuracy</span>
-                          <span className="text-slate-800 font-bold text-xs">±{Math.round(davGeoData.accuracy)}m</span>
+                          <span className={`font-bold text-xs ${
+                            davGeoData.accuracy <= 50 ? "text-emerald-700" : "text-amber-700"
+                          }`}>±{Math.round(davGeoData.accuracy)}m</span>
                         </div>
                         <div>
                           <span className="text-slate-400 text-[10px] uppercase font-bold block">Timestamp</span>
@@ -849,18 +903,25 @@ function CandidateDashboardContent() {
                           Refresh Location
                         </button>
 
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setErrorMsg("");
-                            setDavCameraFacing("user");
-                            setDavStep("selfie");
-                          }}
-                          className="flex-1 py-3 bg-slate-900 hover:bg-slate-800 text-white font-bold rounded-xl text-xs flex items-center justify-center gap-2 transition-all shadow-md cursor-pointer"
-                        >
-                          <span>Open Camera &amp; Take Selfie</span>
-                          <span className="material-symbols-outlined text-sm">photo_camera</span>
-                        </button>
+                        {davGeoData.accuracy <= 50 ? (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setErrorMsg("");
+                              setDavCameraFacing("user");
+                              setDavStep("selfie");
+                            }}
+                            className="flex-1 py-3 bg-slate-900 hover:bg-slate-800 text-white font-bold rounded-xl text-xs flex items-center justify-center gap-2 transition-all shadow-md cursor-pointer"
+                          >
+                            <span>Open Camera &amp; Take Selfie</span>
+                            <span className="material-symbols-outlined text-sm">photo_camera</span>
+                          </button>
+                        ) : (
+                          <div className="flex-1 py-3 bg-amber-100 text-amber-800 font-bold rounded-xl text-xs flex items-center justify-center gap-2 border border-amber-200 select-none">
+                            <span className="material-symbols-outlined text-sm">lock</span>
+                            <span>Camera locked — accuracy must be ≤ 50m</span>
+                          </div>
+                        )}
                       </div>
                     </div>
                   ) : (
@@ -898,21 +959,43 @@ function CandidateDashboardContent() {
                       </div>
                     </div>
                   ) : davHouseGeoData ? (
-                    <div className="bg-emerald-50/60 border border-emerald-200 rounded-2xl p-5 flex flex-col gap-4 shadow-2xs">
+                    <div className={`border rounded-2xl p-5 flex flex-col gap-4 shadow-2xs ${
+                      davHouseGeoData.accuracy <= 50
+                        ? "bg-emerald-50/60 border-emerald-200"
+                        : "bg-amber-50/60 border-amber-200"
+                    }`}>
                       <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 bg-emerald-600 text-white rounded-xl flex items-center justify-center shrink-0 shadow-xs">
-                          <span className="material-symbols-outlined text-xl">home_pin</span>
+                        <div className={`w-10 h-10 text-white rounded-xl flex items-center justify-center shrink-0 shadow-xs ${
+                          davHouseGeoData.accuracy <= 50 ? "bg-emerald-600" : "bg-amber-600"
+                        }`}>
+                          <span className="material-symbols-outlined text-xl">
+                            {davHouseGeoData.accuracy <= 50 ? "home_pin" : "location_searching"}
+                          </span>
                         </div>
                         <div className="flex flex-col">
-                          <span className="font-bold text-emerald-900 text-sm flex items-center gap-1.5">
-                            <span>House Exterior GPS Verified</span>
-                            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping"></span>
-                          </span>
-                          <span className="text-[11px] text-emerald-700 font-medium">Fresh location coordinates captured specifically for the house exterior photo.</span>
+                          {davHouseGeoData.accuracy <= 50 ? (
+                            <>
+                              <span className="font-bold text-emerald-900 text-sm flex items-center gap-1.5">
+                                <span>House Exterior GPS Verified</span>
+                                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping"></span>
+                              </span>
+                              <span className="text-[11px] text-emerald-700 font-medium">Accuracy ≤ 50m — ready to capture house photo.</span>
+                            </>
+                          ) : (
+                            <>
+                              <span className="font-bold text-amber-900 text-sm flex items-center gap-1.5">
+                                <span>Location Accuracy Too Low</span>
+                                <span className="material-symbols-outlined text-base text-amber-600">warning</span>
+                              </span>
+                              <span className="text-[11px] text-amber-700 font-medium">Current accuracy is ±{Math.round(davHouseGeoData.accuracy)}m — must be ≤ 50m to proceed. Please move outdoors or refresh.</span>
+                            </>
+                          )}
                         </div>
                       </div>
 
-                      <div className="bg-white/80 border border-emerald-100 rounded-xl p-3.5 text-xs grid grid-cols-2 gap-3 font-mono">
+                      <div className={`bg-white/80 border rounded-xl p-3.5 text-xs grid grid-cols-2 gap-3 font-mono ${
+                        davHouseGeoData.accuracy <= 50 ? "border-emerald-100" : "border-amber-100"
+                      }`}>
                         <div>
                           <span className="text-slate-400 text-[10px] uppercase font-bold block">House Latitude</span>
                           <span className="text-slate-800 font-bold text-xs">{davHouseGeoData.lat.toFixed(6)}°</span>
@@ -923,7 +1006,9 @@ function CandidateDashboardContent() {
                         </div>
                         <div>
                           <span className="text-slate-400 text-[10px] uppercase font-bold block">Accuracy</span>
-                          <span className="text-slate-800 font-bold text-xs">±{Math.round(davHouseGeoData.accuracy)}m</span>
+                          <span className={`font-bold text-xs ${
+                            davHouseGeoData.accuracy <= 50 ? "text-emerald-700" : "text-amber-700"
+                          }`}>±{Math.round(davHouseGeoData.accuracy)}m</span>
                         </div>
                         <div>
                           <span className="text-slate-400 text-[10px] uppercase font-bold block">Timestamp</span>
@@ -943,18 +1028,25 @@ function CandidateDashboardContent() {
                           Refresh Location
                         </button>
 
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setErrorMsg("");
-                            setDavCameraFacing("environment");
-                            setDavStep("house");
-                          }}
-                          className="flex-1 py-3 bg-slate-900 hover:bg-slate-800 text-white font-bold rounded-xl text-xs flex items-center justify-center gap-2 transition-all shadow-md cursor-pointer"
-                        >
-                          <span>Open Rear Camera &amp; Take House Photo</span>
-                          <span className="material-symbols-outlined text-sm">photo_camera</span>
-                        </button>
+                        {davHouseGeoData.accuracy <= 50 ? (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setErrorMsg("");
+                              setDavCameraFacing("environment");
+                              setDavStep("house");
+                            }}
+                            className="flex-1 py-3 bg-slate-900 hover:bg-slate-800 text-white font-bold rounded-xl text-xs flex items-center justify-center gap-2 transition-all shadow-md cursor-pointer"
+                          >
+                            <span>Open Rear Camera &amp; Take House Photo</span>
+                            <span className="material-symbols-outlined text-sm">photo_camera</span>
+                          </button>
+                        ) : (
+                          <div className="flex-1 py-3 bg-amber-100 text-amber-800 font-bold rounded-xl text-xs flex items-center justify-center gap-2 border border-amber-200 select-none">
+                            <span className="material-symbols-outlined text-sm">lock</span>
+                            <span>Camera locked — accuracy must be ≤ 50m</span>
+                          </div>
+                        )}
                       </div>
                     </div>
                   ) : (
