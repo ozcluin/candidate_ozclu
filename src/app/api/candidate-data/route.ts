@@ -157,39 +157,43 @@ export async function POST(req: NextRequest) {
       const countriesList = [...new Set((validEmps.length > 0 ? validEmps : [employmentData]).map((e: any) => e.country || "India"))];
       const country = countriesList.join(", ");
 
+      const primaryEmp = validEmps[0] || employmentData;
+
       const result = await db.collection("verifications").updateOne(
         { email, type: "employment" },
         {
           $set: {
             employmentData: {
-              country: employmentData.country || "",
-              state: employmentData.state || "",
-              city: employmentData.city || "",
-              companyName: employmentData.companyName || "",
-              addressLine1: employmentData.addressLine1 || "",
-              addressLine2: employmentData.addressLine2 || "",
-              companyTelephoneCode: employmentData.companyTelephoneCode || "+91",
-              companyTelephone: employmentData.companyTelephone || "",
-              department: employmentData.department || "",
-              position: employmentData.position || "",
-              employmentPeriodFrom: employmentData.employmentPeriodFrom || "",
-              employmentPeriodTo: employmentData.employmentPeriodTo || "",
-              employeeCode: employmentData.employeeCode || "",
-              reportingManagerName: employmentData.reportingManagerName || "",
-              reportingManagerDepartment: employmentData.reportingManagerDepartment || "",
-              reportingManagerContactCode: employmentData.reportingManagerContactCode || "+91",
-              reportingManagerContact: employmentData.reportingManagerContact || "",
-              reportingManagerEmail: employmentData.reportingManagerEmail || "",
-              annualCTC: employmentData.annualCTC || "",
-              employmentType: employmentData.employmentType || "",
-              agencyDetails: employmentData.agencyDetails || "",
-              reasonForLeaving: employmentData.reasonForLeaving || "",
-              remarks: employmentData.remarks || "",
-              experienceLetterFile: employmentData.experienceLetterFile || "",
-              experienceLetterFileName: employmentData.experienceLetterFileName || "",
+              country: primaryEmp.country || "",
+              state: primaryEmp.state || "",
+              city: primaryEmp.city || "",
+              companyName: primaryEmp.companyName || "",
+              addressLine1: primaryEmp.addressLine1 || "",
+              addressLine2: primaryEmp.addressLine2 || "",
+              companyTelephoneCode: primaryEmp.companyTelephoneCode || "+91",
+              companyTelephone: primaryEmp.companyTelephone || "",
+              department: primaryEmp.department || "",
+              position: primaryEmp.position || "",
+              employmentPeriodFrom: primaryEmp.employmentPeriodFrom || "",
+              employmentPeriodTo: primaryEmp.employmentPeriodTo || "",
+              employeeCode: primaryEmp.employeeCode || "",
+              reportingManagerName: primaryEmp.reportingManagerName || "",
+              reportingManagerDepartment: primaryEmp.reportingManagerDepartment || "",
+              reportingManagerContactCode: primaryEmp.reportingManagerContactCode || "+91",
+              reportingManagerContact: primaryEmp.reportingManagerContact || "",
+              reportingManagerEmail: primaryEmp.reportingManagerEmail || "",
+              annualCTC: primaryEmp.annualCTC || "",
+              employmentType: primaryEmp.employmentType || "",
+              agencyDetails: primaryEmp.agencyDetails || "",
+              reasonForLeaving: primaryEmp.reasonForLeaving || "",
+              remarks: primaryEmp.remarks || "",
+              experienceLetterFile: primaryEmp.experienceLetterFile || "",
+              experienceLetterFileName: primaryEmp.experienceLetterFileName || "",
+              employments: validEmps.length > 0 ? validEmps : [primaryEmp],
+              pastOrganisations: validEmps.length > 0 ? validEmps : [primaryEmp],
             },
-            ...(Array.isArray(employmentData.pastOrganisations) ? { pastOrganisations: employmentData.pastOrganisations } : {}),
-            ...(Array.isArray(employmentData.employments) ? { employments: employmentData.employments } : {}),
+            pastOrganisations: validEmps.length > 0 ? validEmps : [primaryEmp],
+            employments: validEmps.length > 0 ? validEmps : [primaryEmp],
             itemCount,
             serviceCharge,
             country,
@@ -215,31 +219,54 @@ export async function POST(req: NextRequest) {
       }
 
       const existingVer = await db.collection("verifications").findOne({ email, type: "education" });
+
+      // Normalize to array (support multi-entry like employment)
+      const submittedEducations = Array.isArray(educationData.educations) && educationData.educations.length > 0
+        ? educationData.educations
+        : (Array.isArray(educationData.educationList) && educationData.educationList.length > 0
+            ? educationData.educationList
+            : [educationData]);
+
+      const validEdus = submittedEducations.filter((e: any) => e?.degreeType?.trim() || e?.courseName?.trim());
+      const itemCount = validEdus.length > 0 ? validEdus.length : 1;
+
       const defaultCountryRates: Record<string, number> = { Singapore: 15, Malaysia: 12, Philippines: 10, UAE: 20, India: 5 };
       const safeOrgName = existingVer?.orgName;
       const orgDoc = safeOrgName ? await db.collection("organisations").findOne({
         name: { $regex: new RegExp("^" + (safeOrgName || "").replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&') + "$", "i") }
       }) : null;
 
-      const itemCountry = educationData.country || "India";
-      const serviceCharge = orgDoc?.educationRates?.[itemCountry] ?? (defaultCountryRates[itemCountry] || 5);
-      const country = itemCountry;
+      const serviceCharge = (validEdus.length > 0 ? validEdus : [educationData]).reduce((sum: number, e: any) => {
+        const itemCountry = e.country || "India";
+        const rate = orgDoc?.educationRates?.[itemCountry] ?? (defaultCountryRates[itemCountry] || 5);
+        return sum + rate;
+      }, 0);
+
+      const countriesList = [...new Set((validEdus.length > 0 ? validEdus : [educationData]).map((e: any) => e.country || "India"))];
+      const country = countriesList.join(", ");
+
+      const primaryEdu = validEdus[0] || educationData;
 
       const result = await db.collection("verifications").updateOne(
         { email, type: "education" },
         {
           $set: {
             educationData: {
-              country: educationData.country || "",
-              degreeType: educationData.degreeType || "",
-              courseName: educationData.courseName || "",
-              boardUniversity: educationData.boardUniversity || "",
-              institutionName: educationData.institutionName || "",
-              rollNumber: educationData.rollNumber || "",
-              passingYear: educationData.passingYear || "",
-              certificateFile: educationData.certificateFile || "",
-              certificateFileName: educationData.certificateFileName || "",
+              country: primaryEdu.country || "",
+              degreeType: primaryEdu.degreeType || "",
+              courseName: primaryEdu.courseName || "",
+              boardUniversity: primaryEdu.boardUniversity || "",
+              institutionName: primaryEdu.institutionName || "",
+              rollNumber: primaryEdu.rollNumber || "",
+              passingYear: primaryEdu.passingYear || "",
+              certificateFile: primaryEdu.certificateFile || "",
+              certificateFileName: primaryEdu.certificateFileName || "",
+              educations: validEdus.length > 0 ? validEdus : [primaryEdu],
+              educationList: validEdus.length > 0 ? validEdus : [primaryEdu],
             },
+            educationList: validEdus.length > 0 ? validEdus : [primaryEdu],
+            educations: validEdus.length > 0 ? validEdus : [primaryEdu],
+            itemCount,
             serviceCharge,
             country,
             educationDataSubmitted: true,
@@ -255,6 +282,7 @@ export async function POST(req: NextRequest) {
 
       return NextResponse.json({ success: true });
     }
+
 
     if (action === "submitDigitalAddressData") {
       const { payload } = body;

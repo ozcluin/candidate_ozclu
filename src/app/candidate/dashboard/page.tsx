@@ -44,8 +44,9 @@ function CandidateDashboardContent() {
   const [empSubmitting, setEmpSubmitting] = useState(false);
   const [empSubmitted, setEmpSubmitted] = useState(false);
 
-  // Education form state
-  const [eduForm, setEduForm] = useState({
+  // Education form state (multi-entry, like employment)
+  const createEmptyEducation = (idSuffix: number) => ({
+    id: `edu-${Date.now()}-${idSuffix}`,
     country: "India",
     degreeType: "",
     courseName: "",
@@ -56,8 +57,21 @@ function CandidateDashboardContent() {
     certificateFile: "",
     certificateFileName: ""
   });
+  const [educations, setEducations] = useState([createEmptyEducation(1)]);
   const [eduSubmitting, setEduSubmitting] = useState(false);
   const [eduSubmitted, setEduSubmitted] = useState(false);
+
+  const addEducationItem = () => {
+    setEducations(prev => [...prev, createEmptyEducation(prev.length + 1)]);
+  };
+
+  const removeEducationItem = (id: string) => {
+    setEducations(prev => (prev.length > 1 ? prev.filter(item => item.id !== id) : prev));
+  };
+
+  const updateEducationItem = (id: string, field: string, value: string) => {
+    setEducations(prev => prev.map(item => (item.id === id ? { ...item, [field]: value } : item)));
+  };
 
   // Digital Address state
   const [davConsent, setDavConsent] = useState(false);
@@ -237,45 +251,50 @@ function CandidateDashboardContent() {
     }
   };
 
-  const updateEduForm = (field: string, value: string) => {
-    setEduForm(prev => ({ ...prev, [field]: value }));
-  };
-
   const handleEducationSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!eduForm.degreeType) {
-      setErrorMsg("Degree Category is required");
-      return;
-    }
-    if (!eduForm.courseName.trim()) {
-      setErrorMsg("Course/Degree Name is required");
-      return;
-    }
-    if (!eduForm.boardUniversity.trim()) {
-      setErrorMsg("Board/University Name is required");
-      return;
-    }
-    if (!eduForm.institutionName.trim()) {
-      setErrorMsg("Institution/College Name is required");
-      return;
-    }
-    if (!eduForm.rollNumber.trim()) {
-      setErrorMsg("Roll/Registration Number is required");
-      return;
-    }
-    if (!eduForm.passingYear.trim()) {
-      setErrorMsg("Passing Year is required");
-      return;
+    for (let i = 0; i < educations.length; i++) {
+      const edu = educations[i];
+      if (!edu.degreeType) {
+        setErrorMsg(`Degree Category is required for Credential #${i + 1}`);
+        return;
+      }
+      if (!edu.courseName.trim()) {
+        setErrorMsg(`Course/Degree Name is required for Credential #${i + 1}`);
+        return;
+      }
+      if (!edu.boardUniversity.trim()) {
+        setErrorMsg(`Board/University Name is required for Credential #${i + 1}`);
+        return;
+      }
+      if (!edu.institutionName.trim()) {
+        setErrorMsg(`Institution/College Name is required for Credential #${i + 1}`);
+        return;
+      }
+      if (!edu.rollNumber.trim()) {
+        setErrorMsg(`Roll/Registration Number is required for Credential #${i + 1}`);
+        return;
+      }
+      if (!edu.passingYear.trim()) {
+        setErrorMsg(`Passing Year is required for Credential #${i + 1}`);
+        return;
+      }
     }
 
     setEduSubmitting(true);
     setErrorMsg("");
 
     try {
+      const primaryEdu = educations[0] || {};
+      const payloadData = {
+        ...primaryEdu,
+        educations: educations,
+        educationList: educations,
+      };
       const res = await fetch("/api/candidate-data", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "submitEducationData", educationData: eduForm })
+        body: JSON.stringify({ action: "submitEducationData", educationData: payloadData })
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Failed to submit education data");
@@ -1224,6 +1243,48 @@ function CandidateDashboardContent() {
                     </span>
                   </div>
                 </div>
+
+                {(() => {
+                  const emps: any[] = Array.isArray(verification?.employments) && verification.employments.length > 0
+                    ? verification.employments
+                    : (Array.isArray(verification?.pastOrganisations) && verification.pastOrganisations.length > 0
+                        ? verification.pastOrganisations
+                        : (Array.isArray(verification?.employmentData?.employments) && verification.employmentData.employments.length > 0
+                            ? verification.employmentData.employments
+                            : (Array.isArray(verification?.employmentData?.pastOrganisations) && verification.employmentData.pastOrganisations.length > 0
+                                ? verification.employmentData.pastOrganisations
+                                : (verification?.employmentData ? [verification.employmentData] : []))));
+
+                  if (emps.length === 0) return null;
+
+                  return (
+                    <div className="w-full text-left mt-4 border-t border-slate-200 pt-6">
+                      <h4 className="font-bold text-sm text-slate-800 mb-3 flex items-center gap-2">
+                        <span className="material-symbols-outlined text-[#016e1c] text-lg">work</span>
+                        Submitted Employment Records ({emps.length} Organisation{emps.length > 1 ? "s" : ""})
+                      </h4>
+                      <div className="space-y-4">
+                        {emps.map((item: any, idx: number) => (
+                          <div key={idx} className="border border-slate-200 rounded-xl overflow-hidden text-xs bg-slate-50/50">
+                            <div className="bg-slate-100 p-3 font-bold text-slate-800 flex justify-between items-center border-b border-slate-200">
+                              <span>{idx + 1}. {item.companyName || `Organisation #${idx + 1}`} {idx === 0 ? "(Current / Most Recent)" : "(Past Record)"}</span>
+                              <span className="font-normal text-slate-500">{item.position}</span>
+                            </div>
+                            <div className="p-3 space-y-1.5 text-slate-700 font-medium">
+                              <div><span className="font-semibold text-slate-500">Period:</span> {item.employmentPeriodFrom || "-"} to {item.employmentPeriodTo || "Present"}</div>
+                              <div><span className="font-semibold text-slate-500">Location:</span> {[item.city, item.state, item.country].filter(Boolean).join(", ") || "-"}</div>
+                              <div><span className="font-semibold text-slate-500">Department &amp; Position:</span> {item.department ? `${item.department} / ` : ""}{item.position || "-"}</div>
+                              <div><span className="font-semibold text-slate-500">Employee Code:</span> {item.employeeCode || "-"}</div>
+                              <div><span className="font-semibold text-slate-500">Reporting Manager:</span> {item.reportingManagerName || "-"} {item.reportingManagerEmail ? `(${item.reportingManagerEmail})` : ""}</div>
+                              {item.annualCTC && <div><span className="font-semibold text-slate-500">Annual CTC:</span> {item.annualCTC}</div>}
+                              {item.reasonForLeaving && <div><span className="font-semibold text-slate-500">Reason for Leaving:</span> {item.reasonForLeaving}</div>}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })()}
               </div>
             </div>
           ) : (
@@ -1680,8 +1741,49 @@ function CandidateDashboardContent() {
                     </span>
                   </div>
                 </div>
+
+                {(() => {
+                  const edus: any[] = Array.isArray(verification?.educationList) && verification.educationList.length > 0
+                    ? verification.educationList
+                    : (Array.isArray(verification?.educations) && verification.educations.length > 0
+                        ? verification.educations
+                        : (Array.isArray(verification?.educationData?.educations) && verification.educationData.educations.length > 0
+                            ? verification.educationData.educations
+                            : (Array.isArray(verification?.educationData?.educationList) && verification.educationData.educationList.length > 0
+                                ? verification.educationData.educationList
+                                : (verification?.educationData ? [verification.educationData] : []))));
+
+                  if (edus.length === 0) return null;
+
+                  return (
+                    <div className="w-full text-left mt-4 border-t border-slate-200 pt-6">
+                      <h4 className="font-bold text-sm text-slate-800 mb-3 flex items-center gap-2">
+                        <span className="material-symbols-outlined text-[#016e1c] text-lg">school</span>
+                        Submitted Education Records ({edus.length} Credential{edus.length > 1 ? "s" : ""})
+                      </h4>
+                      <div className="space-y-4">
+                        {edus.map((item: any, idx: number) => (
+                          <div key={idx} className="border border-slate-200 rounded-xl overflow-hidden text-xs bg-slate-50/50">
+                            <div className="bg-slate-100 p-3 font-bold text-slate-800 flex justify-between items-center border-b border-slate-200">
+                              <span>{idx + 1}. {item.courseName || item.degreeType || `Credential #${idx + 1}`}</span>
+                              <span className="font-normal text-slate-500">{item.degreeType}</span>
+                            </div>
+                            <div className="p-3 space-y-1.5 text-slate-700 font-medium">
+                              <div><span className="font-semibold text-slate-500">Board / University:</span> {item.boardUniversity || "-"}</div>
+                              <div><span className="font-semibold text-slate-500">Institution:</span> {item.institutionName || "-"}</div>
+                              <div><span className="font-semibold text-slate-500">Roll / Reg No.:</span> {item.rollNumber || "-"}</div>
+                              <div><span className="font-semibold text-slate-500">Passing Year:</span> {item.passingYear || "-"}</div>
+                              <div><span className="font-semibold text-slate-500">Country:</span> {item.country || "-"}</div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })()}
               </div>
             </div>
+
           ) : (
             <div className="bg-white/80 backdrop-blur-md border border-[#C6982E]/30 rounded-2xl shadow-md overflow-hidden animate-fade-in">
               {/* Header */}
@@ -1696,130 +1798,160 @@ function CandidateDashboardContent() {
               </div>
 
               <form onSubmit={handleEducationSubmit} className="p-6 sm:p-8 flex flex-col gap-8">
-                {/* Section: Academic Institution */}
-                <div className="bg-slate-50/40 border border-slate-200/60 rounded-2xl p-5 md:p-6 transition-all hover:bg-slate-50/70">
-                  <h4 className="font-label-caps text-[#016e1c] text-xs uppercase tracking-wider font-bold mb-4 flex items-center gap-2 border-b border-slate-200/60 pb-2">
-                    <span className="material-symbols-outlined text-[18px]">school</span>
-                    Academic Institution
-                  </h4>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="flex flex-col gap-1.5 md:col-span-2">
-                      <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Country of Institution *</label>
-                      <select value={eduForm.country} onChange={e => updateEduForm("country", e.target.value)}
-                        className="border border-slate-200 rounded-xl p-3 text-sm font-semibold text-slate-800 bg-white focus:outline-none focus:ring-2 focus:ring-[#016e1c]/20 focus:border-[#016e1c] transition-all cursor-pointer shadow-2xs">
-                        <option value="Singapore">Singapore</option>
-                        <option value="Malaysia">Malaysia</option>
-                        <option value="Philippines">Philippines</option>
-                        <option value="UAE">UAE</option>
-                        <option value="India">India</option>
-                      </select>
-                    </div>
-
-                    <div className="flex flex-col gap-1.5 md:col-span-2">
-                      <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Degree Category *</label>
-                      <select value={eduForm.degreeType} onChange={e => updateEduForm("degreeType", e.target.value)}
-                        className="border border-slate-200 rounded-xl p-3 text-sm font-semibold text-slate-800 bg-white focus:outline-none focus:ring-2 focus:ring-[#016e1c]/20 focus:border-[#016e1c] transition-all cursor-pointer shadow-2xs">
-                        <option value="">Select Degree Category</option>
-                        <option value="10th / Matriculation">10th / Matriculation</option>
-                        <option value="12th / Intermediate">12th / Intermediate</option>
-                        <option value="Bachelor's Degree">Bachelor's Degree</option>
-                        <option value="Master's Degree">Master's Degree</option>
-                        <option value="Doctorate (PhD)">Doctorate (PhD)</option>
-                        <option value="Diploma">Diploma / Certification</option>
-                      </select>
-                    </div>
-
-                    <div className="flex flex-col gap-1.5">
-                      <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Course / Degree Name *</label>
-                      <input type="text" value={eduForm.courseName} onChange={e => updateEduForm("courseName", e.target.value)}
-                        className="border border-slate-200 rounded-xl p-3 text-sm font-semibold text-slate-800 bg-white focus:outline-none focus:ring-2 focus:ring-[#016e1c]/20 focus:border-[#016e1c] transition-all placeholder-slate-400 shadow-2xs"
-                        placeholder="e.g. B.Tech Computer Science, CBSE 10th" />
-                    </div>
-
-                    <div className="flex flex-col gap-1.5">
-                      <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Board / University Name *</label>
-                      <input type="text" value={eduForm.boardUniversity} onChange={e => updateEduForm("boardUniversity", e.target.value)}
-                        className="border border-slate-200 rounded-xl p-3 text-sm font-semibold text-slate-800 bg-white focus:outline-none focus:ring-2 focus:ring-[#016e1c]/20 focus:border-[#016e1c] transition-all placeholder-slate-400 shadow-2xs"
-                        placeholder="e.g. Delhi University, CBSE, VTU" />
-                    </div>
-
-                    <div className="flex flex-col gap-1.5 md:col-span-2">
-                      <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Institution / School / College Name *</label>
-                      <input type="text" value={eduForm.institutionName} onChange={e => updateEduForm("institutionName", e.target.value)}
-                        className="border border-slate-200 rounded-xl p-3 text-sm font-semibold text-slate-800 bg-white focus:outline-none focus:ring-2 focus:ring-[#016e1c]/20 focus:border-[#016e1c] transition-all placeholder-slate-400 shadow-2xs"
-                        placeholder="e.g. Hansraj College, St. Xavier's School" />
-                    </div>
-                  </div>
-                </div>
-
-                {/* Section: Academic Identifiers */}
-                <div className="bg-slate-50/40 border border-slate-200/60 rounded-2xl p-5 md:p-6 transition-all hover:bg-slate-50/70">
-                  <h4 className="font-label-caps text-[#016e1c] text-xs uppercase tracking-wider font-bold mb-4 flex items-center gap-2 border-b border-slate-200/60 pb-2">
-                    <span className="material-symbols-outlined text-[18px]">fingerprint</span>
-                    Verification Credentials
-                  </h4>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="flex flex-col gap-1.5">
-                      <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Roll / Registration / Enrollment Number *</label>
-                      <input type="text" value={eduForm.rollNumber} onChange={e => updateEduForm("rollNumber", e.target.value)}
-                        className="border border-slate-200 rounded-xl p-3 text-sm font-semibold text-slate-800 bg-white focus:outline-none focus:ring-2 focus:ring-[#016e1c]/20 focus:border-[#016e1c] transition-all placeholder-slate-400 shadow-2xs"
-                        placeholder="Roll or Registration number" />
-                    </div>
-
-                    <div className="flex flex-col gap-1.5">
-                      <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Passing Year *</label>
-                      <input type="number" min="1950" max="2026" value={eduForm.passingYear} onChange={e => updateEduForm("passingYear", e.target.value)}
-                        className="border border-slate-200 rounded-xl p-3 text-sm font-semibold text-slate-800 bg-white focus:outline-none focus:ring-2 focus:ring-[#016e1c]/20 focus:border-[#016e1c] transition-all placeholder-slate-400 shadow-2xs"
-                        placeholder="e.g. 2023" />
-                    </div>
-                  </div>
-                </div>
-
-                {/* Section: Upload markssheet/certificate */}
-                <div className="bg-slate-50/40 border border-slate-200/60 rounded-2xl p-5 md:p-6 transition-all hover:bg-slate-50/70">
-                  <h4 className="font-label-caps text-[#016e1c] text-xs uppercase tracking-wider font-bold mb-4 flex items-center gap-2 border-b border-slate-200/60 pb-2">
-                    <span className="material-symbols-outlined text-[18px]">upload_file</span>
-                    Certificate Proof
-                  </h4>
-                  <div className="flex flex-col gap-2">
-                    <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Upload Marksheet / Degree Certificate</label>
-                    <div className="flex flex-col items-center justify-center border-2 border-dashed border-slate-300 rounded-2xl p-6 bg-white hover:bg-slate-50/10 transition-colors relative cursor-pointer group">
-                      <input type="file" accept="image/*,application/pdf" onChange={e => {
-                        const file = e.target.files?.[0];
-                        if (file) {
-                          const reader = new FileReader();
-                          reader.onloadend = () => {
-                            updateEduForm("certificateFile", reader.result as string);
-                            updateEduForm("certificateFileName", file.name);
-                          };
-                          reader.readAsDataURL(file);
-                        }
-                      }}
-                        className="absolute inset-0 opacity-0 cursor-pointer w-full h-full" />
-                      <span className="material-symbols-outlined text-4xl text-slate-400 group-hover:text-primary transition-colors">cloud_upload</span>
-                      <p className="text-xs font-bold text-slate-700 mt-2">
-                        {eduForm.certificateFileName ? eduForm.certificateFileName : "Click or drag certificate here to upload"}
-                      </p>
-                      <p className="text-[10px] text-slate-400 mt-1 font-semibold">Supports PDF, PNG, JPG (Max 5MB)</p>
-                    </div>
-
-                    {eduForm.certificateFile && (
-                      <div className="mt-4 p-4 bg-emerald-50/30 border border-emerald-100 rounded-xl flex items-center justify-between text-xs animate-fade-in">
-                        <span className="font-semibold text-emerald-800 flex items-center gap-2">
-                          <span className="material-symbols-outlined text-emerald-600 text-sm">check_circle</span>
-                          File loaded successfully
-                        </span>
-                        <button type="button" onClick={() => {
-                          updateEduForm("certificateFile", "");
-                          updateEduForm("certificateFileName", "");
-                        }}
-                          className="text-[10px] font-bold uppercase tracking-wider text-rose-600 hover:text-rose-800 cursor-pointer">
-                          Remove
-                        </button>
+                {educations.map((edu, idx) => (
+                  <div key={edu.id} className="bg-slate-50/40 border border-slate-200/60 rounded-2xl p-5 md:p-6 transition-all hover:bg-slate-50/70 relative">
+                    {/* Credential Header */}
+                    <div className="flex items-center justify-between border-b border-slate-200/60 pb-3 mb-4">
+                      <div className="flex items-center gap-2">
+                        <div className="w-7 h-7 rounded-lg bg-[#016e1c] text-white flex items-center justify-center font-bold text-xs">
+                          {idx + 1}
+                        </div>
+                        <div>
+                          <h4 className="font-label-caps text-[#016e1c] text-xs uppercase tracking-wider font-bold flex items-center gap-2">
+                            <span className="material-symbols-outlined text-[18px]">school</span>
+                            {idx === 0 ? "Primary Academic Credential *" : `Additional Credential #${idx + 1}`}
+                          </h4>
+                          <p className="text-[11px] text-slate-500 font-medium">Provide degree, institution, and verification details.</p>
+                        </div>
                       </div>
-                    )}
+
+                      {educations.length > 1 && (
+                        <button
+                          type="button"
+                          onClick={() => removeEducationItem(edu.id)}
+                          className="px-2.5 py-1 rounded-lg border border-red-200 bg-red-50 hover:bg-red-100 text-red-700 font-bold text-[11px] transition-colors cursor-pointer flex items-center gap-1"
+                        >
+                          <span className="material-symbols-outlined text-[14px]">close</span>
+                          <span>Remove</span>
+                        </button>
+                      )}
+                    </div>
+
+                    {/* Academic Institution Fields */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                      <div className="flex flex-col gap-1.5 md:col-span-2">
+                        <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Country of Institution *</label>
+                        <select value={edu.country} onChange={e => updateEducationItem(edu.id, "country", e.target.value)}
+                          className="border border-slate-200 rounded-xl p-3 text-sm font-semibold text-slate-800 bg-white focus:outline-none focus:ring-2 focus:ring-[#016e1c]/20 focus:border-[#016e1c] transition-all cursor-pointer shadow-2xs">
+                          <option value="Singapore">Singapore</option>
+                          <option value="Malaysia">Malaysia</option>
+                          <option value="Philippines">Philippines</option>
+                          <option value="UAE">UAE</option>
+                          <option value="India">India</option>
+                        </select>
+                      </div>
+
+                      <div className="flex flex-col gap-1.5 md:col-span-2">
+                        <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Degree Category *</label>
+                        <select value={edu.degreeType} onChange={e => updateEducationItem(edu.id, "degreeType", e.target.value)}
+                          className="border border-slate-200 rounded-xl p-3 text-sm font-semibold text-slate-800 bg-white focus:outline-none focus:ring-2 focus:ring-[#016e1c]/20 focus:border-[#016e1c] transition-all cursor-pointer shadow-2xs">
+                          <option value="">Select Degree Category</option>
+                          <option value="10th / Matriculation">10th / Matriculation</option>
+                          <option value="12th / Intermediate">12th / Intermediate</option>
+                          <option value="Bachelor's Degree">Bachelor&apos;s Degree</option>
+                          <option value="Master's Degree">Master&apos;s Degree</option>
+                          <option value="Doctorate (PhD)">Doctorate (PhD)</option>
+                          <option value="Diploma">Diploma / Certification</option>
+                        </select>
+                      </div>
+
+                      <div className="flex flex-col gap-1.5">
+                        <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Course / Degree Name *</label>
+                        <input type="text" value={edu.courseName} onChange={e => updateEducationItem(edu.id, "courseName", e.target.value)}
+                          className="border border-slate-200 rounded-xl p-3 text-sm font-semibold text-slate-800 bg-white focus:outline-none focus:ring-2 focus:ring-[#016e1c]/20 focus:border-[#016e1c] transition-all placeholder-slate-400 shadow-2xs"
+                          placeholder="e.g. B.Tech Computer Science, CBSE 10th" />
+                      </div>
+
+                      <div className="flex flex-col gap-1.5">
+                        <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Board / University Name *</label>
+                        <input type="text" value={edu.boardUniversity} onChange={e => updateEducationItem(edu.id, "boardUniversity", e.target.value)}
+                          className="border border-slate-200 rounded-xl p-3 text-sm font-semibold text-slate-800 bg-white focus:outline-none focus:ring-2 focus:ring-[#016e1c]/20 focus:border-[#016e1c] transition-all placeholder-slate-400 shadow-2xs"
+                          placeholder="e.g. Delhi University, CBSE, VTU" />
+                      </div>
+
+                      <div className="flex flex-col gap-1.5 md:col-span-2">
+                        <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Institution / School / College Name *</label>
+                        <input type="text" value={edu.institutionName} onChange={e => updateEducationItem(edu.id, "institutionName", e.target.value)}
+                          className="border border-slate-200 rounded-xl p-3 text-sm font-semibold text-slate-800 bg-white focus:outline-none focus:ring-2 focus:ring-[#016e1c]/20 focus:border-[#016e1c] transition-all placeholder-slate-400 shadow-2xs"
+                          placeholder="e.g. Hansraj College, St. Xavier's School" />
+                      </div>
+                    </div>
+
+                    {/* Verification Credentials */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4 pt-3 border-t border-slate-200/60">
+                      <div className="flex flex-col gap-1.5">
+                        <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Roll / Registration / Enrollment Number *</label>
+                        <input type="text" value={edu.rollNumber} onChange={e => updateEducationItem(edu.id, "rollNumber", e.target.value)}
+                          className="border border-slate-200 rounded-xl p-3 text-sm font-semibold text-slate-800 bg-white focus:outline-none focus:ring-2 focus:ring-[#016e1c]/20 focus:border-[#016e1c] transition-all placeholder-slate-400 shadow-2xs"
+                          placeholder="Roll or Registration number" />
+                      </div>
+
+                      <div className="flex flex-col gap-1.5">
+                        <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Passing Year *</label>
+                        <input type="number" min="1950" max="2026" value={edu.passingYear} onChange={e => updateEducationItem(edu.id, "passingYear", e.target.value)}
+                          className="border border-slate-200 rounded-xl p-3 text-sm font-semibold text-slate-800 bg-white focus:outline-none focus:ring-2 focus:ring-[#016e1c]/20 focus:border-[#016e1c] transition-all placeholder-slate-400 shadow-2xs"
+                          placeholder="e.g. 2023" />
+                      </div>
+                    </div>
+
+                    {/* Certificate Upload */}
+                    <div className="pt-3 border-t border-slate-200/60">
+                      <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider flex items-center justify-between mb-2">
+                        <span>Degree / Marksheet / Certificate Copy (Optional)</span>
+                        <span className="text-slate-400 font-semibold">(Max 1MB)</span>
+                      </label>
+                      <div className="flex flex-col items-center justify-center border-2 border-dashed border-slate-300 rounded-2xl p-6 bg-white hover:bg-slate-50/10 transition-colors relative cursor-pointer group">
+                        <input type="file" accept="image/*,application/pdf" onChange={e => {
+                          const file = e.target.files?.[0];
+                          if (file) {
+                            if (file.size > 2 * 1024 * 1024) {
+                              setErrorMsg(`File "${file.name}" exceeds 1MB limit.`);
+                              return;
+                            }
+                            const reader = new FileReader();
+                            reader.onloadend = () => {
+                              updateEducationItem(edu.id, "certificateFile", reader.result as string);
+                              updateEducationItem(edu.id, "certificateFileName", file.name);
+                            };
+                            reader.readAsDataURL(file);
+                          }
+                        }}
+                          className="absolute inset-0 opacity-0 cursor-pointer w-full h-full" />
+                        <span className="material-symbols-outlined text-4xl text-slate-400 group-hover:text-primary transition-colors">cloud_upload</span>
+                        <p className="text-xs font-bold text-slate-700 mt-2">
+                          {edu.certificateFileName ? edu.certificateFileName : "Upload Degree / Marksheet / Certificate (Optional, Max 1MB)"}
+                        </p>
+                        <p className="text-[10px] text-slate-400 mt-1 font-semibold">Supports PDF, PNG, JPG (Max 1MB)</p>
+                      </div>
+
+                      {edu.certificateFile && (
+                        <div className="mt-4 p-4 bg-emerald-50/30 border border-emerald-100 rounded-xl flex items-center justify-between text-xs animate-fade-in">
+                          <span className="font-semibold text-emerald-800 flex items-center gap-2">
+                            <span className="material-symbols-outlined text-emerald-600 text-sm">check_circle</span>
+                            File loaded successfully
+                          </span>
+                          <button type="button" onClick={() => {
+                            updateEducationItem(edu.id, "certificateFile", "");
+                            updateEducationItem(edu.id, "certificateFileName", "");
+                          }}
+                            className="text-[10px] font-bold uppercase tracking-wider text-rose-600 hover:text-rose-800 cursor-pointer">
+                            Remove
+                          </button>
+                        </div>
+                      )}
+                    </div>
                   </div>
-                </div>
+                ))}
+
+                {/* Add Another Education Button */}
+                <button
+                  type="button"
+                  onClick={addEducationItem}
+                  className="w-full py-3.5 border-2 border-dashed border-[#016e1c]/30 hover:border-[#016e1c] rounded-2xl text-xs font-bold text-[#016e1c] bg-[#f6fbf0]/40 hover:bg-[#f6fbf0] transition-all flex items-center justify-center gap-2 cursor-pointer shadow-xs"
+                >
+                  <span className="material-symbols-outlined text-[18px]">school</span>
+                  <span>+ Add Another Education / Academic Credential</span>
+                </button>
 
                 {/* Submit button */}
                 <div className="flex justify-end pt-4 border-t border-slate-200">
@@ -1839,66 +1971,120 @@ function CandidateDashboardContent() {
                   </button>
                 </div>
               </form>
+
             </div>
           )
         ) : (
           /* Verification Form & Action Card */
-          <div className="bg-white/80 backdrop-blur-md border border-[#C6982E]/30 rounded-2xl p-6 sm:p-8 shadow-md flex flex-col gap-6">
+          <div className="bg-white border border-[#C6982E]/30 rounded-3xl p-6 sm:p-8 shadow-xl flex flex-col gap-6 relative overflow-hidden">
+            {/* Top Tri-Color Accent Line */}
+            <div className="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-[#ff9933] via-white to-[#128807]"></div>
+
+            {/* DigiLocker Branded Logo Header */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-200/80 pb-6">
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-[#0074d9] to-[#0b2545] text-white flex items-center justify-center font-bold text-xl shadow-md border border-[#0074d9]/30 shrink-0">
+                  DL
+                </div>
+                <div className="flex flex-col">
+                  <div className="flex items-center gap-2">
+                    <span className="font-headline-md text-[#0b2545] font-extrabold text-2xl tracking-tight">DigiLocker</span>
+                    <span className="bg-[#0074d9]/10 text-[#0074d9] border border-[#0074d9]/30 text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider">
+                      Government of India
+                    </span>
+                  </div>
+                  <span className="text-xs text-slate-500 font-semibold mt-0.5">Your documents Anytime, Anywhere • MeitY</span>
+                </div>
+              </div>
+              <div className="flex items-center gap-1.5 text-xs text-emerald-800 bg-emerald-50 border border-emerald-200 px-3 py-1.5 rounded-xl font-bold self-start sm:self-center">
+                <span className="material-symbols-outlined text-sm text-emerald-600">verified_user</span>
+                <span>Secure Official Gateway</span>
+              </div>
+            </div>
+
             <div>
-              <h3 className="font-headline-md text-slate-800 font-bold text-xl">Verify Identity</h3>
+              <h3 className="font-headline-md text-slate-800 font-bold text-xl">Identity Verification Instructions</h3>
               <p className="font-body-sm text-slate-500 mt-1 font-medium">
-                Authenticate using DigiLocker to securely complete your background identity check.
+                Please review the instructions below before retrieving your official identity documents via DigiLocker.
               </p>
             </div>
 
-            <div className="flex flex-col gap-6">
-              {/* Info panel */}
-              <div className="p-5 bg-[#eaf0e4]/20 border border-[#C6982E]/30 rounded-xl flex flex-col sm:flex-row items-start gap-4">
-                <span className="material-symbols-outlined text-[#006699] text-3xl bg-[#eaf0e4]/50 p-2 rounded-full">
-                  cloud_download
-                </span>
-                <div className="flex flex-col gap-1">
-                  <h4 className="font-body-sm font-bold text-slate-800">Secure DigiLocker Authorization</h4>
-                  <p className="text-xs text-slate-500 leading-relaxed font-medium">
-                    By clicking below, you consent to securely pull your Aadhaar e-KYC records and other issued government documents (such as PAN card, Driving Licence, and educational certificates) via DigiLocker.
-                  </p>
+            {/* Instruction Steps */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              {/* Step 1 */}
+              <div className="bg-slate-50/80 border border-slate-200/80 rounded-2xl p-4 flex flex-col gap-2 relative transition-all hover:bg-slate-50">
+                <div className="flex items-center gap-2">
+                  <span className="w-6 h-6 rounded-full bg-[#0074d9] text-white flex items-center justify-center font-bold text-xs shrink-0">
+                    1
+                  </span>
+                  <span className="font-bold text-xs text-slate-800 uppercase tracking-wider">Step 1</span>
                 </div>
+                <p className="text-xs text-slate-600 font-semibold leading-relaxed">
+                  <strong className="text-slate-900">Before you begin:</strong> Ensure the required documents are saved in your DigiLocker account.
+                </p>
               </div>
 
-              {/* Consent Checkbox */}
-              <div className="flex items-start gap-3 p-4 bg-[#FFF4CC]/20 border border-[#FFEFA3]/45 rounded-xl">
-                <input
-                  id="consent-checkbox"
-                  type="checkbox"
-                  checked={consentChecked}
-                  onChange={(e) => setConsentChecked(e.target.checked)}
-                  className="w-5 h-5 mt-0.5 border border-[#C6982E] rounded bg-white text-primary focus:ring-[#016e1c] cursor-pointer shrink-0"
-                />
-                <label htmlFor="consent-checkbox" className="font-body-sm text-slate-600 cursor-pointer select-none leading-relaxed font-medium">
-                  I agree to share the necessary verification details and authorize Ozclu to securely retrieve my identity records via DigiLocker for the purpose of completing my background check.
-                </label>
+              {/* Step 2 */}
+              <div className="bg-slate-50/80 border border-slate-200/80 rounded-2xl p-4 flex flex-col gap-2 relative transition-all hover:bg-slate-50">
+                <div className="flex items-center gap-2">
+                  <span className="w-6 h-6 rounded-full bg-[#0074d9] text-white flex items-center justify-center font-bold text-xs shrink-0">
+                    2
+                  </span>
+                  <span className="font-bold text-xs text-slate-800 uppercase tracking-wider">Step 2</span>
+                </div>
+                <p className="text-xs text-slate-600 font-semibold leading-relaxed">
+                  <strong className="text-slate-900">Log in safely:</strong> Enter your Aadhaar-linked mobile number and enter the OTP sent to your phone.
+                </p>
               </div>
 
-              <div className="flex justify-end gap-stack-sm">
-                <button
-                  type="button"
-                  onClick={handleStartDigilockerDirect}
-                  disabled={isSaving || !consentChecked}
-                  className="px-6 py-3 bg-primary text-slate-900 font-bold hover:bg-[#C6982E] font-button-text rounded-xl transition-all flex items-center gap-2 cursor-pointer shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  {isSaving ? (
-                    <>
-                      <div className="w-5 h-5 border-2 border-slate-900 border-t-transparent rounded-full animate-spin"></div>
-                      <span>Redirecting...</span>
-                    </>
-                  ) : (
-                    <>
-                      <span>Open DigiLocker Portal</span>
-                      <span className="material-symbols-outlined text-sm">open_in_new</span>
-                    </>
-                  )}
-                </button>
+              {/* Step 3 */}
+              <div className="bg-slate-50/80 border border-slate-200/80 rounded-2xl p-4 flex flex-col gap-2 relative transition-all hover:bg-slate-50">
+                <div className="flex items-center gap-2">
+                  <span className="w-6 h-6 rounded-full bg-[#0074d9] text-white flex items-center justify-center font-bold text-xs shrink-0">
+                    3
+                  </span>
+                  <span className="font-bold text-xs text-slate-800 uppercase tracking-wider">Step 3</span>
+                </div>
+                <p className="text-xs text-slate-600 font-semibold leading-relaxed">
+                  <strong className="text-slate-900">Select &amp; import:</strong> Choose your identity documents you need for Ozclu Verifications and click &quot;Access from DigiLocker&quot;.
+                </p>
               </div>
+            </div>
+
+            {/* Consent Checkbox */}
+            <div className="flex items-start gap-3 p-4 bg-[#FFF4CC]/30 border border-[#FFEFA3] rounded-2xl">
+              <input
+                id="consent-checkbox"
+                type="checkbox"
+                checked={consentChecked}
+                onChange={(e) => setConsentChecked(e.target.checked)}
+                className="w-5 h-5 mt-0.5 border border-[#C6982E] rounded bg-white text-primary focus:ring-[#016e1c] cursor-pointer shrink-0"
+              />
+              <label htmlFor="consent-checkbox" className="font-body-sm text-slate-700 cursor-pointer select-none leading-relaxed font-semibold">
+                I agree to share the necessary verification details and authorize Ozclu to securely retrieve my identity records via DigiLocker for the purpose of completing my background check.
+              </label>
+            </div>
+
+            {/* Action Button */}
+            <div className="flex justify-end pt-2">
+              <button
+                type="button"
+                onClick={handleStartDigilockerDirect}
+                disabled={isSaving || !consentChecked}
+                className="px-8 py-3.5 bg-[#0074d9] text-white font-bold hover:bg-[#005bb5] active:scale-95 rounded-xl transition-all flex items-center gap-2 cursor-pointer shadow-md disabled:opacity-40 disabled:cursor-not-allowed text-sm"
+              >
+                {isSaving ? (
+                  <>
+                    <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                    <span>Connecting to DigiLocker...</span>
+                  </>
+                ) : (
+                  <>
+                    <span>Access from DigiLocker</span>
+                    <span className="material-symbols-outlined text-base">open_in_new</span>
+                  </>
+                )}
+              </button>
             </div>
           </div>
         )}
